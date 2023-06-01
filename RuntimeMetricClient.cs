@@ -6,14 +6,29 @@ using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
+using System.Reflection.Metadata.Ecma335;
 
-namespace Pumpkin.PiCollectioServer;
+namespace Pumpkin.PiCollectionServer;
 internal static class RuntimeMetricClient
 {
-#error TODO: make these performanceCounters unreachable on linux
-	private static PerformanceCounter _cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");
+	private static PerformanceCounter _cpuCounter;
 	//using P/Invoke now (for windows anyway) bc thats way faster
 	//private static PerformanceCounter _ramCounter = new PerformanceCounter("Memory", "Available MBytes");
+
+	const string linuxCpuRegex = @"([0-9.]+\.[0-9.]) id";
+	const string linuxUsedRamRegex = @"([0-9]+\.[0-9]) used,";
+	const string linuxTotalRamRegex = @"MiB Mem :  ([0-9]+\.[0-9]) total";
+
+	const string linuxPerformanceBashCommand = @"top -b -n 1 | awk " +
+	@"'{ " +
+		$"if (match($0, /{linuxCpuRegex}/, arr)) printf(\"\"%s\\n\\r\"\", arr[1]);" +
+		$"if (match($0, /{linuxUsedRamRegex}/, arr)) printf(\"\"%s\\n\\r\"\", arr[1]);" +
+		$"if (match($0, /{linuxTotalRamRegex}/, arr)) printf(\"\"%s\\n\\r\"\", arr[1]);" +
+	@"}'";
+
+
+	private static OS currentOs;
 
 	public enum OS 
 	{
@@ -22,7 +37,7 @@ internal static class RuntimeMetricClient
 		MacOs,	//unix
 		Android,//unix
 		TvOs,	//unix
-		IOS,
+		IOS,	//piece of shit
 		Other	//idk, idc (browser or smart toaster or smart toilet or whatever)
 	}
 
@@ -45,7 +60,8 @@ internal static class RuntimeMetricClient
 	public static extern bool GlobalMemoryStatusEx(ref MemoryStatusEx lpBuffer);
 
 	//on init call this slow ass counter so it can "warm up" because it needs a whole second to display a value the first time
-    static RuntimeMetricClient() => _ = _cpuCounter.NextValue();
+	//i love this short syntax
+    static RuntimeMetricClient() => _ = (_cpuCounter ?? ((currentOs = DetectOs()) == OS.Windows ? _cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total") : null ))?.NextValue();
 
     public static (float cpuPercentage, float usedRam, float maxRam) GetMetrics() 
 	{
@@ -60,7 +76,7 @@ internal static class RuntimeMetricClient
 
 	private static (float cpuPercentage, float usedRam, float maxRam) GetWinMetrics()
 	{
-		float cpuUsage = _cpuCounter.NextValue();		
+		float cpuUsage = _cpuCounter?.NextValue() ?? 0f;		
 		MemoryStatusEx memStatus = new MemoryStatusEx();
 		memStatus.dwLength = (uint)Marshal.SizeOf(typeof(MemoryStatusEx));
 
@@ -81,7 +97,7 @@ internal static class RuntimeMetricClient
 			StartInfo = new ProcessStartInfo
 			{
 				FileName = "bash",
-				Arguments = "-c \"free | awk '/Mem/{print $3/$2 * 100.0}'\"",
+				Arguments = $"-c \"{linuxPerformanceBashCommand}\"",
 				RedirectStandardOutput = true,
 				UseShellExecute = false,
 				CreateNoWindow = true
@@ -91,9 +107,13 @@ internal static class RuntimeMetricClient
 		process.Start();
 		string output = process.StandardOutput.ReadToEnd();
 		process.WaitForExit();
+		string[] values = output.Split(Environment.NewLine);
+		if (values.Length < 3) return (0, 0, 0);
+		float cpuPercentage = float.TryParse(values[0], out cpuPercentage) ? 100 - cpuPercentage : 0,
+		usedRam = float.TryParse(values[1], out usedRam) ? usedRam / 1024f : 0,
+		maxRam = float.TryParse(values[2], out maxRam) ? maxRam / 1024f : 0;
 
-		if (float.TryParse(output, out float usedRamPercentage)) return (0, usedRamPercentage, 0);
-		return (0, 0, 0);
+		return (cpuPercentage, usedRam, maxRam);
 	}
 
 	public static OS DetectOs() 
