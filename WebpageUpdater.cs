@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Pumpkin.PiCollectioServer;
+namespace Pumpkin.PiCollectionServer;
 internal class WebpageUpdater
 {
     public string LastUpdated { get; private set; } = string.Empty;

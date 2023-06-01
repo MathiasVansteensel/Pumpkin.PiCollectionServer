@@ -5,7 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Pumpkin.PiCollectioServer;
+namespace Pumpkin.PiCollectionServer;
 [Obsolete("Just use Guid class like a normal person :)")]
 internal static class HwidUtil
 {

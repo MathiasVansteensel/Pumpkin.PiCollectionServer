@@ -4,6 +4,10 @@ using Microsoft.AspNetCore.Http;
 using Pumpkin.PiCollectioServer;
 using System.Net.NetworkInformation;
 using System.Diagnostics;
+using System.Net;
+using System.Net.Sockets;
+using Pumpkin.Networking;
+using System.Runtime.CompilerServices;
 
 namespace Pumpkin.PiCollectionServer
 {
@@ -11,8 +15,39 @@ namespace Pumpkin.PiCollectionServer
 	{
 		const string WWWRoot = "Web";
 		const string IndexFile = "index.html";
+		const string EmailSubject = "{0} - 🎃Pumpkin Status Update🎃";
+		const string MailBody = 
+		"Dear User,\r\n\r\n" +
+		"We are pleased to inform you that your Smart Home Hub has successfully come online and is now fully operational. As of {0} at {1}, the hub connected to your network and is ready to serve your smart home needs.\r\n\r\n" +
+		"Please find below the essential details regarding the hub's connection:\r\n\r\n" +
+		"Hub IP Address: {2}\r\n" +
+		"Network Interface: {3}\r\n" +
+		"To access the web portal and view comprehensive statistics about your smart home system, simply enter the hub's IP address ({2}) into your preferred web browser.\r\n\r\n" +
+		"We highly recommend bookmarking the web portal for quick and easy access in the future. It provides valuable insights and allows you to manage and monitor your connected devices efficiently.\r\n\r\n" +
+		"Visit our website (pumpkinapp.be) if you have any questions.\r\n\r\n" +
+		"Best regards,\r\n\r\n" +
+		"The Pumpkin Smarthome team 🎃";
+
+		const ushort PortalPort = 6969;
+		const ushort UdpPort = 8888;
+
+		public static event EventHandler OnInitialized;
 
 		static (float cpuPercentage, float usedRam, float maxRam) lastMetrics = RuntimeMetricClient.GetMetrics();
+		internal static IPAddress ipAddress;
+		internal static string networkName;
+
+		private static byte bitField = 0;
+		private static bool _isInit = false;
+		internal static bool IsInit
+		{
+			get => _isInit;
+			private set
+			{
+				if (value) OnInitialized?.Invoke(null, EventArgs.Empty);
+				_isInit = value;
+			}
+		}
 
 		internal enum placeholderIndex
 		{
@@ -26,7 +61,7 @@ namespace Pumpkin.PiCollectionServer
 			RAM_NUM
 		}
 
-		internal static readonly string[] PlaceHolderStrings = 
+		internal static readonly string[] PlaceHolderStrings =
 		{
 			"{DOWNLOADED_NUM}",
 			"{UPLOADED_NUM}",
@@ -46,7 +81,7 @@ namespace Pumpkin.PiCollectionServer
 			{ PlaceHolderStrings[(int)placeholderIndex.UPLOADED_NUM], ViewModel.Instance.UploadedPackets },
 			{ PlaceHolderStrings[(int)placeholderIndex.THROUGHPUT_NUM], ViewModel.Instance.Throughput },
 			{ PlaceHolderStrings[(int)placeholderIndex.ERROR_NUM], ViewModel.Instance.Errors },
-			{ PlaceHolderStrings[(int)placeholderIndex.CONNECTION_STRING], GetNetworkName() },
+			{ PlaceHolderStrings[(int)placeholderIndex.CONNECTION_STRING], $"{networkName = GetNetworkName(out ipAddress)}  [{ipAddress}]"},
 			{ PlaceHolderStrings[(int)placeholderIndex.PUMPKIN_ID], ViewModel.Instance.HWID },
 			{ PlaceHolderStrings[(int)placeholderIndex.CPU_NUM], $"{lastMetrics.cpuPercentage:0.0}%" },
 			{ PlaceHolderStrings[(int)placeholderIndex.RAM_NUM], $"{lastMetrics.usedRam:0.0} / {lastMetrics.maxRam:0.0} GB" },
@@ -54,18 +89,49 @@ namespace Pumpkin.PiCollectionServer
 
 		private static WebpageUpdater updater = new($"{WWWRoot}/{IndexFile}", ref variableData, async (html, context) => await context.Response.WriteAsync(html));
 
+        static Program()
+        {
+			OnInitialized += (sender, e) =>
+			{
+				MailClient.MessageSent += (sender, msg) => Console.WriteLine($"Email sent to {string.Join(',', msg.To)}");
+				DateTime today = DateTime.Now;
+				string shortDate = today.ToString("ddd M MMM yyyy");
+				string subject = string.Format(EmailSubject, shortDate);
+				string body = string.Format(MailBody, shortDate, today.ToShortTimeString(), ipAddress, networkName);
+				MailClient.SendEmail(ViewModel.Instance.Email, subject, body);
+			};
+
+			Network.Initialize(UdpPort);
+			Network.DatagramReceived += Network_DatagramReceived;
+		}
+
+		private static void Network_DatagramReceived(string msg, IPAddress sender)
+		{
+			string response = null;
+			switch (msg.Trim().ToLower())
+			{
+				case "#show#":
+					response = $"[{ViewModel.Instance.HWID}]: {ipAddress}";
+					break;
+				default:
+					return;
+			}
+
+			Network.Send(response, sender.ToString(), UdpPort);
+		}
+
 		static async Task Main()
 		{
 			var host = new WebHostBuilder()
 				.UseKestrel()
-				.UseUrls("http://192.168.1.131:80/", "http://localhost:80/")
+				.UseUrls($"http://localhost:{PortalPort}", $"http://{ipAddress}:{PortalPort}/")
 				.Configure(app => app.Run(async (context) => await HandleRequest(context)))
 				.Build();
 
 			await host.RunAsync();
 		}
 
-		static void UpdateDataTable() 
+		static void UpdateDataTable()
 		{
 			for (int i = 0; i < PlaceHolderStrings.Length; i++)
 			{
@@ -85,7 +151,7 @@ namespace Pumpkin.PiCollectionServer
 						newData = ViewModel.Instance.Errors;
 						break;
 					case placeholderIndex.CONNECTION_STRING:
-						newData = GetNetworkName();
+						newData = $"{networkName = GetNetworkName(out ipAddress)}  [{ipAddress}]";
 						break;
 					case placeholderIndex.PUMPKIN_ID:
 						newData = ViewModel.Instance.HWID;
@@ -101,6 +167,13 @@ namespace Pumpkin.PiCollectionServer
 					default:
 						newData = "Whoops! Error";
 						break;
+				}
+
+				//boolean logic is so much easier in c++
+				if (!IsInit)
+				{
+					bitField ^= (byte)(1 << i);
+					IsInit = (bitField & byte.MaxValue) == byte.MaxValue;
 				}
 
 				variableData[PlaceHolderStrings[i]] = newData;
@@ -122,10 +195,24 @@ namespace Pumpkin.PiCollectionServer
 					requestPath = WWWRoot + path;
 					break;
 			}
-			await context.Response.SendFileAsync(requestPath);			
+			await context.Response.SendFileAsync(requestPath);
 		}
-		
+
 		//what a mess
-		public static string GetNetworkName() => NetworkInterface.GetAllNetworkInterfaces().FirstOrDefault(ni => ni.OperationalStatus == OperationalStatus.Up && ni.NetworkInterfaceType != NetworkInterfaceType.Loopback)?.Name ?? "Not Connected";
+		public static string GetNetworkName(out IPAddress ip)
+		{
+			NetworkInterface nic = NetworkInterface.GetAllNetworkInterfaces().FirstOrDefault(ni => ni.OperationalStatus == OperationalStatus.Up && ni.NetworkInterfaceType != NetworkInterfaceType.Loopback);
+			ip = nic?.GetIPProperties().UnicastAddresses.Where(addr => addr.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork).FirstOrDefault()?.Address ?? (GetLocalIp() ?? IPAddress.None);
+			return nic?.Name ?? "Not Connected";
+		}
+
+		private static IPAddress GetLocalIp() 
+		{
+			using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.IP))
+			{
+				socket.Connect("8.8.8.8", ushort.MaxValue - 2);
+				return ((IPEndPoint)socket.LocalEndPoint)?.Address;
+			}
+		}
 	}
 }

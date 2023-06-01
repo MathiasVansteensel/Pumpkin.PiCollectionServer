@@ -5,7 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace Pumpkin.PiCollectioServer;
+namespace Pumpkin.PiCollectionServer;
 
 //i know this is not a true viewmodel but i didn't know any other name... naming things is hard and MVVM is still my fav architecture
 //also i know it's not static but that's because i'm lazy and then it's easier to serialize
@@ -61,7 +61,19 @@ public class ViewModel
 		}
 	}
 
-	private Guid _hwid = Guid.NewGuid();
+	private string _email = "mathias.vansteensel@gmail.com";
+	public string Email
+	{
+		get => _email;
+		set
+		{
+			if (_email != value) return;
+			_email = value;
+			SaveModel();
+		}
+	}
+
+	private Guid _hwid = Guid.Empty;
 	public Guid HWID
 	{
 		get => _hwid;
@@ -100,12 +112,16 @@ public class ViewModel
 			UploadedPackets = model.UploadedPackets;
 			Throughput = model.Throughput;
 			Errors = model.Errors;
+			Email = model.Email;
+			HWID = model.HWID;
 			return;
 		}
-		DownloadedPackets = default;
-		UploadedPackets = default;
-		Throughput = default;
-		Errors = default;
+		DownloadedPackets = _downloadedPackets;
+		UploadedPackets = _uploadedPackets;
+		Throughput = _throughput;
+		Errors = _errors;
+		Email = _email;
+		HWID = Guid.NewGuid();
 	}
 
 	internal async void SaveModel() 

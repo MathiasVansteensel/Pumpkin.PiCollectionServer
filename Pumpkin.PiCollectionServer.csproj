@@ -13,6 +13,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Reference Include="Pumpkin.Networking">
+      <HintPath>..\Pumpkin.Networking\bin\Release\net7.0\publish\Pumpkin.Networking.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
     <None Update="ViewModel\Model.json">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
