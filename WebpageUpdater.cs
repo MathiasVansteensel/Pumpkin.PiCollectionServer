@@ -12,25 +12,32 @@ internal class WebpageUpdater
 
 	private string originalHtml;
 
-	private Dictionary<string, dynamic> data;
+	private Dictionary<string, Func<dynamic>> data;
 
     private Action<string, HttpContext> updateAction;
 
 
-	public WebpageUpdater(string filename, ref Dictionary<string, dynamic> data, Action<string, HttpContext> updateAction)
+	public WebpageUpdater(string filename, ref Dictionary<string, Func<dynamic>> data, Action<string, HttpContext> updateAction)
     {
         originalHtml = File.ReadAllText(filename);
         this.data = data;
         this.updateAction = updateAction;
     }
 
-    public string GetUpdated() 
+	public WebpageUpdater(string filename, ref Dictionary<string, Func<dynamic>> data)
+	{
+		originalHtml = File.ReadAllText(filename);
+		this.data = data;
+        this.updateAction = null;
+	}
+
+	public string GetUpdated() 
     {
         string html = originalHtml;
         for (int i = 0; i < data.Count; i++)
         {
             var currentPlaceholder = data.ElementAt(i);
-            html = html.Replace(currentPlaceholder.Key, currentPlaceholder.Value.ToString(), StringComparison.Ordinal);
+            html = html.Replace(currentPlaceholder.Key, currentPlaceholder.Value?.Invoke()?.ToString() ?? "Whoops! Error", StringComparison.Ordinal);
         }
         LastUpdated = html;
         return html;

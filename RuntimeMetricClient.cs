@@ -64,7 +64,7 @@ internal static class RuntimeMetricClient
 		public ulong ullAvailExtendedVirtual;
 	}
 
-	//microsoft keeps removing usefull shit like microsoft.visualbasic.devices for the ComputerInfo class
+	//microsoft keeps removing useful shit like microsoft.visualbasic.devices for the ComputerInfo class
 	[DllImport("kernel32.dll")]
 	public static extern bool GlobalMemoryStatusEx(ref MemoryStatusEx lpBuffer);
 
