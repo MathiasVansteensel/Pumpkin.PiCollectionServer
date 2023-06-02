@@ -8,6 +8,7 @@ using System.Security.Cryptography;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Reflection.Metadata.Ecma335;
+using System.Text.RegularExpressions;
 
 namespace Pumpkin.PiCollectionServer;
 internal static class RuntimeMetricClient
@@ -15,17 +16,25 @@ internal static class RuntimeMetricClient
 	private static PerformanceCounter _cpuCounter;
 	//using P/Invoke now (for windows anyway) bc thats way faster
 	//private static PerformanceCounter _ramCounter = new PerformanceCounter("Memory", "Available MBytes");
+	
+	const string linuxPerformanceBashCommand = "top -bn 1 | grep -E '^%?Cpu|MiB Mem :'";
+	const string linuxDecimalNumberRegex = @"([0-9.]+\.[0-9.])";
 
-	const string linuxCpuRegex = @"([0-9.]+\.[0-9.]) id";
-	const string linuxUsedRamRegex = @"([0-9]+\.[0-9]) used,";
-	const string linuxTotalRamRegex = @"MiB Mem :  ([0-9]+\.[0-9]) total";
+	const byte cpuCaptureIndex = 3;
+	const byte usedRamCaptureIndex = 10;
+	const byte maxRamCaptureIndex = 8;
 
-	const string linuxPerformanceBashCommand = @"top -b -n 1 | awk " +
-	@"'{ " +
-		$"if (match($0, /{linuxCpuRegex}/, arr)) printf(\"\"%s\\n\\r\"\", arr[1]);" +
-		$"if (match($0, /{linuxUsedRamRegex}/, arr)) printf(\"\"%s\\n\\r\"\", arr[1]);" +
-		$"if (match($0, /{linuxTotalRamRegex}/, arr)) printf(\"\"%s\\n\\r\"\", arr[1]);" +
-	@"}'";
+	//WHY IS THE awk SYNTAX DIFFERENT ON DEBIAN VS UBUNTU... WTF
+	//const string linuxPerformanceBashCommand = @"top -b -n 1 | awk " +
+	//@"'{ " +
+	//	$"if (match($0, /{linuxCpuRegex}/, arr)) printf(\"\"%s\\n\\r\"\", arr[1]);" +
+	//	$"if (match($0, /{linuxUsedRamRegex}/, arr)) printf(\"\"%s\\n\\r\"\", arr[1]);" +
+	//	$"if (match($0, /{linuxTotalRamRegex}/, arr)) printf(\"\"%s\\n\\r\"\", arr[1]);" +
+	//@"}'";
+
+	//const string linuxCpuRegex = @"([0-9.]+\.[0-9.])(?: id)";
+	//const string linuxUsedRamRegex = @"([0-9]+\.[0-9]) used";
+	//const string linuxTotalRamRegex = @"([0-9]+\.[0-9]) total";
 
 
 	private static OS currentOs;
@@ -107,12 +116,29 @@ internal static class RuntimeMetricClient
 		process.Start();
 		string output = process.StandardOutput.ReadToEnd();
 		process.WaitForExit();
-		string[] values = output.Split(Environment.NewLine);
-		if (values.Length < 3) return (0, 0, 0);
-		float cpuPercentage = float.TryParse(values[0], out cpuPercentage) ? 100 - cpuPercentage : 0,
-		usedRam = float.TryParse(values[1], out usedRam) ? usedRam / 1024f : 0,
-		maxRam = float.TryParse(values[2], out maxRam) ? maxRam / 1024f : 0;
 
+		//Match cpuMatch, usedRamMatch, maxRamMatch;
+
+		//These all work, just not on every system...
+
+		//Attempt 1
+		//string[] values = output.Split(Environment.NewLine);
+		//if (values.Length < 3) return (0, 0, 0);
+		//float cpuPercentage = float.TryParse(values[0], out cpuPercentage) ? 100 - cpuPercentage : 0,
+		//usedRam = float.TryParse(values[1], out usedRam) ? usedRam / 1024f : 0,
+		//maxRam = float.TryParse(values[2], out maxRam) ? maxRam / 1024f : 0;
+
+		//Attempt 2
+		//cpuPercentage = float.TryParse((cpuMatch = Regex.Match(output, linuxCpuRegex)).Success ? cpuMatch.Value.Replace(" id", string.Empty) : "100", out cpuPercentage) ? 100 - cpuPercentage : 0;
+		//usedRam = float.TryParse((usedRamMatch = Regex.Match(output, linuxUsedRamRegex)).Success ? usedRamMatch.Value : "0", out usedRam) ? usedRam / 1024f : 0;
+		//maxRam = float.TryParse((maxRamMatch = Regex.Match(output, linuxTotalRamRegex)).Success ? maxRamMatch.Value : "0", out maxRam) ? maxRam / 1024f : 0;
+
+		//Attempt3
+		MatchCollection numberMatches = Regex.Matches(output, linuxDecimalNumberRegex);
+		float cpuPercentage = numberMatches.Count >= cpuCaptureIndex + 1 && float.TryParse(numberMatches[cpuCaptureIndex].Value, out cpuPercentage) ? 100 - cpuPercentage : 0;
+		float usedRam = numberMatches.Count >= usedRamCaptureIndex + 1 && float.TryParse(numberMatches[usedRamCaptureIndex].Value, out usedRam) ? usedRam / 1024f : 0;
+		float maxRam = numberMatches.Count >= maxRamCaptureIndex + 1 && float.TryParse(numberMatches[maxRamCaptureIndex].Value, out maxRam) ? maxRam / 1024f : 0;
+		
 		return (cpuPercentage, usedRam, maxRam);
 	}
 

@@ -30,7 +30,8 @@ namespace Pumpkin.PiCollectionServer
 		const ushort PortalPort = 6969;
 		const ushort UdpPort = 8888;
 
-		public static event EventHandler OnInitialized;
+		public static event Action OnLoadPortal;
+		public static event Action OnInitialized;
 
 		static (float cpuPercentage, float usedRam, float maxRam) lastMetrics = RuntimeMetricClient.GetMetrics();
 		internal static IPAddress ipAddress;
@@ -43,7 +44,7 @@ namespace Pumpkin.PiCollectionServer
 			get => _isInit;
 			private set
 			{
-				if (value) OnInitialized?.Invoke(null, EventArgs.Empty);
+				if (value) OnLoadPortal?.Invoke();
 				_isInit = value;
 			}
 		}
@@ -90,18 +91,22 @@ namespace Pumpkin.PiCollectionServer
 
         static Program()
         {
-			OnInitialized += (sender, e) =>
+			Network.Initialize(UdpPort);
+			Network.DatagramReceived += Network_DatagramReceived;
+			OnInitialized += () =>
 			{
+#if !DEBUG
 				MailClient.MessageSent += (sender, msg) => Console.WriteLine($"Email sent to {string.Join(',', msg.To)}");
 				DateTime today = DateTime.Now;
 				string shortDate = today.ToString("ddd M MMM yyyy");
 				string subject = string.Format(EmailSubject, shortDate);
 				string body = string.Format(MailBody, shortDate, today.ToShortTimeString(), ipAddress, networkName);
 				MailClient.SendEmail(ViewModel.Instance.Email, subject, body);
+#else
+				Console.WriteLine("[DEBUG]: would have sent mail");
+#endif
 			};
-
-			Network.Initialize(UdpPort);
-			Network.DatagramReceived += Network_DatagramReceived;
+			OnInitialized?.Invoke();
 		}
 
 		private static void Network_DatagramReceived(string msg, IPAddress sender)
@@ -121,6 +126,7 @@ namespace Pumpkin.PiCollectionServer
 
 		static async Task Main()
 		{
+			Console.WriteLine("Started :)");
 			var host = new WebHostBuilder()
 				.UseKestrel()
 				.UseUrls($"http://localhost:{PortalPort}", $"http://{ipAddress}:{PortalPort}/")

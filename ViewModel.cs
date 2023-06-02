@@ -1,9 +1,11 @@
-﻿using System;
+﻿using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.Threading;
 
 namespace Pumpkin.PiCollectionServer;
 
@@ -19,7 +21,7 @@ public class ViewModel
 		get => _downloadedPackets;
 		set
 		{
-			if (_downloadedPackets != value) return;
+			if (_downloadedPackets == value) return;
 			_downloadedPackets = value;
 			SaveModel();
 		}
@@ -31,7 +33,7 @@ public class ViewModel
 		get => _uploadedPackets;
 		set
 		{
-			if (_uploadedPackets != value) return;
+			if (_uploadedPackets == value) return;
 			_uploadedPackets = value;
 			SaveModel();
 		}
@@ -43,7 +45,7 @@ public class ViewModel
 		get => _throughput;
 		set
 		{
-			if (_throughput != value) return;
+			if (_throughput == value) return;
 			_throughput = value;
 			SaveModel();
 		}
@@ -55,7 +57,7 @@ public class ViewModel
 		get => _errors;
 		set
 		{
-			if (_errors != value) return;
+			if (_errors == value) return;
 			_errors = value;
 			SaveModel();
 		}
@@ -67,7 +69,7 @@ public class ViewModel
 		get => _email;
 		set
 		{
-			if (_email != value) return;
+			if (_email == value) return;
 			_email = value;
 			SaveModel();
 		}
@@ -79,7 +81,7 @@ public class ViewModel
 		get => _hwid;
 		set
 		{
-			if (_hwid != value) return;
+			if (_hwid == value) return;
 			_hwid = value;
 			SaveModel();
 		}
@@ -96,17 +98,29 @@ public class ViewModel
 			{
 				lock (_lock) //i hate locks...
 				{
-					_instance = new();
+					_instance = new(null);
 					return _instance;
 				}
 			}
 			return _instance;
 		}
+		private set => _instance = value;
 	}
 
-	private ViewModel()
+	public ViewModel() 
 	{
-		if (LoadModel().GetAwaiter().GetResult() is ViewModel model) 
+		DownloadedPackets = _downloadedPackets;
+		UploadedPackets = _uploadedPackets;
+		Throughput = _throughput;
+		Errors = _errors;
+		Email = _email;
+		var newGuid = Guid.NewGuid();
+		HWID = newGuid;
+	}
+
+	private ViewModel(object @private) //just here to solve stupid ambiguity
+	{
+		if (LoadModel().GetAwaiter().GetResult() is ViewModel model)
 		{
 			DownloadedPackets = model.DownloadedPackets;
 			UploadedPackets = model.UploadedPackets;
@@ -114,46 +128,65 @@ public class ViewModel
 			Errors = model.Errors;
 			Email = model.Email;
 			HWID = model.HWID;
-			return;
 		}
-		DownloadedPackets = _downloadedPackets;
-		UploadedPackets = _uploadedPackets;
-		Throughput = _throughput;
-		Errors = _errors;
-		Email = _email;
-		HWID = Guid.NewGuid();
+		else 
+		{
+			DownloadedPackets = _downloadedPackets;
+			UploadedPackets = _uploadedPackets;
+			Throughput = _throughput;
+			Errors = _errors;
+			Email = _email;
+			HWID = Guid.NewGuid();
+		}
+		//yes... i know this is not how singletons work... but i need to deserialize this mess and i cant do that without a parameterless public ctor
+		Instance = this;
 	}
+
+	//no i'm not gonna work with locks, they cant even be async... WHY
+	private static SemaphoreSlim fileSemaphore = new(1, 1);
 
 	internal async void SaveModel() 
 	{
-		using (var stream = File.Open(ModelFile, FileMode.OpenOrCreate, FileAccess.Write)) 
+		await fileSemaphore.WaitAsync();
+		using (var stream = File.Open(ModelFile, FileMode.OpenOrCreate, FileAccess.Write))
 		{
 			await JsonSerializer.SerializeAsync(stream, this);
 			await stream.FlushAsync(); //this buffer crap can cause issue with file lock, but should be fine i guess (i want unbuffered streams, but i'm not gonna write one rn)
 			stream.Close();
 		}
+		fileSemaphore.Release();
 	}
 
 	//task bc async void may not complete before we start using the model, which would require a taskcompletionsource, but i dont wanna bother with that rn
 	internal async Task<ViewModel> LoadModel()
 	{
+		await fileSemaphore.WaitAsync();
 		if (!File.Exists(ModelFile))
 		{
 			string dirName = Path.GetDirectoryName(ModelFile);
 			if (!Directory.Exists(dirName)) Directory.CreateDirectory(dirName);
-			File.Create(ModelFile).Dispose();
+			using (Stream file = File.Create(ModelFile)) file.Close();
+			fileSemaphore.Release();
 			return null;
 		}
+
+		ViewModel result;
 		using (var stream = File.Open(ModelFile, FileMode.Open, FileAccess.Read))
 		{
 			try
 			{
-				return (ViewModel)await JsonSerializer.DeserializeAsync(stream, typeof(ViewModel));
+				result = (ViewModel)await JsonSerializer.DeserializeAsync(stream, typeof(ViewModel));
 			}
-			catch (Exception)
+			catch (Exception ex)
 			{
-				return null;
+				result = null;
+			}
+			finally 
+			{
+				stream.Close();
+				fileSemaphore.Release();
 			}
 		}
+		return result;
 	}
 }
