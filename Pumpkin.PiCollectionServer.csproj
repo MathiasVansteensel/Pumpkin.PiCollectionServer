@@ -27,54 +27,51 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="Web\Portal\assets\bootstrap\css\bootstrap-grid.min.css">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Web\Portal\assets\bootstrap\css\bootstrap-grid.min.css">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Web\Portal\assets\bootstrap\css\bootstrap-grid.min.css">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Web\Portal\assets\bootstrap\css\bootstrap-grid.min.css">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Web\Portal\assets\bootstrap\css\bootstrap-grid.min.css">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Web\assets\images\logo5.png">
+    <None Update="Web\Portal\assets\bootstrap\css\bootstrap-reboot.min.css">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Web\assets\mobirise\css\mbr-additional.css">
+    <None Update="Web\Portal\assets\bootstrap\css\bootstrap.min.css">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Web\assets\smoothscroll\smooth-scroll.js">
+    <None Update="Web\Portal\assets\bootstrap\js\bootstrap.bundle.min.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Web\assets\theme\css\style.css">
+    <None Update="Web\Portal\assets\images\logo5.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Web\assets\theme\js\script.js">
+    <None Update="Web\Portal\assets\mobirise\css\mbr-additional.css">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Web\assets\web\assets\mobirise-icons2\mobirise2.css">
+    <None Update="Web\Portal\assets\smoothscroll\smooth-scroll.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Web\assets\web\assets\mobirise-icons2\mobirise2.eot">
+    <None Update="Web\Portal\assets\theme\css\style.css">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Web\assets\web\assets\mobirise-icons2\mobirise2.svg">
+    <None Update="Web\Portal\assets\theme\js\script.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Web\assets\web\assets\mobirise-icons2\mobirise2.ttf">
+    <None Update="Web\Portal\assets\web\assets\mobirise-icons2\mobirise2.css">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Web\assets\web\assets\mobirise-icons2\mobirise2.woff">
+    <None Update="Web\Portal\assets\web\assets\mobirise-icons2\mobirise2.eot">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Web\assets\ytplayer\index.js">
+    <None Update="Web\Portal\assets\web\assets\mobirise-icons2\mobirise2.svg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Web\index.html">
+    <None Update="Web\Portal\assets\web\assets\mobirise-icons2\mobirise2.ttf">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Web\Portal\assets\web\assets\mobirise-icons2\mobirise2.woff">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Web\Portal\assets\ytplayer\index.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Web\Portal\index.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

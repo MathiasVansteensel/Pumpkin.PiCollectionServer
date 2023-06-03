@@ -1,13 +1,13 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Pumpkin.PiCollectioServer;
 using System.Net.NetworkInformation;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using Pumpkin.Networking;
 using System.Runtime.CompilerServices;
+using System.Linq;
 
 namespace Pumpkin.PiCollectionServer
 {
@@ -19,41 +19,80 @@ namespace Pumpkin.PiCollectionServer
 		const string EmailIndexFile = "EmailBody.html";
 		const string EmailFormKey = "email";
 		const string EmailSubject = "{0} - 🎃Pumpkin Status Update🎃";
-		const string MailBody = 
-		"Dear User,\r\n\r\n" +
-		"We are pleased to inform you that your Smart Home Hub has successfully come online and is now fully operational. As of {0} at {1}, the hub connected to your network and is ready to serve your smart home needs.\r\n\r\n" +
-		"Please find below the essential details regarding the hub's connection:\r\n\r\n" +
-		"Hub IP Address: {2}\r\n" +
-		"Network Interface: {3}\r\n" +
-		"To access the web portal and view comprehensive statistics about your smart home system, simply enter the hub's IP address ({2}) into your preferred web browser.\r\n\r\n" +
-		"We highly recommend bookmarking the web portal for quick and easy access in the future. It provides valuable insights and allows you to manage and monitor your connected devices efficiently.\r\n\r\n" +
-		"Visit our website (pumpkinapp.be) if you have any questions.\r\n\r\n" +
-		"Best regards,\r\n\r\n" +
-		"The Pumpkin Smarthome team 🎃";
+		//const string MailBody =
+		//"Dear User,<br/><br/>" +
+		//"We are pleased to inform you that your Smart Home Hub has <strong>successfully come online</strong>. As of <strong>{0}</strong> at <strong>{1}</strong>, the hub connected to your network and is ready for further setup, or if already setup, to serve your smart home needs.<br/><br/>" +
+		//"Please find below the essential details regarding the hub's connection:<br/>" +
+		//"<ul><li>Hub IP Address: {2}</li>" +
+		//"<li>Network Interface: {3}</li>" +
+		//"<li>WebPortal Port: {4}</li>" +
+		//"<li>UDP Port: {5}</li></ul>" +
+		//"To access the web portal and view comprehensive statistics about your smart home system, simply enter the hub's IP address and port into your preferred web browser (like so: http://{2}:{4}/).<br/>" +
+		//"You can also use any UDP client (app/program) to broadcast the message \"#Show#\" (without quotes) on the broadcast address <strong>(255.255.255.255)</strong> on <strong>port {5}</strong> to retrieve the IP and ID of your device. For a simpler, more first party, approach you can also download the <strong>Pumpkin wizzard</strong> from our website (pumpkinapp.be/download/wizzard) to finish setting up your device." +
+		//"We highly recommend bookmarking the web portal for quick and easy access in the future. It provides valuable insights and allows you to keep an eye on the network side of your smarthome system.<br/><br/>" +
+		//"Visit our website (pumpkinapp.be) if you have any questions.<br/><br/>" +
+		//"Best regards,<br/><br/>" +
+		//"The Pumpkin Smarthome team 🎃";
 
 		private static readonly TimeSpan NetworkInfoUpdateInterval = TimeSpan.FromMinutes(10);
 		private static readonly TimeSpan PerformanceMetricUpdateInterval = TimeSpan.FromMilliseconds(350);
 		private static readonly TimeSpan CollectionInterval = TimeSpan.FromMinutes(1);
 
-		public static event EventHandler OnInitialized;
-
-		static (float cpuPercentage, float usedRam, float maxRam) lastMetrics = RuntimeMetricClient.GetMetrics();
-		internal static IPAddress ipAddress;
-		internal static string networkName;
-
-		private static byte bitField = 0;
-		private static bool _isInit = false;
-		internal static bool IsInit
+		private static ushort PortalPort { get; set; } = 6969;
+		private static ushort UdpPort { get; set; } = 8888;
+		private static string ShortDateToday 
 		{
-			get => _isInit;
-			private set
+			get => DateTime.Today.ToString("ddd d MMM yyyy");
+		}
+
+		private static Stopwatch networkInfoUpdateWatch = new();
+		private static Stopwatch performanceMetricUpdateWatch = new();
+
+		public static event Action Initialized;
+
+		private static (float cpuPercentage, float usedRam, float maxRam)? _performanceMetrics = null;
+		private static (float cpuPercentage, float usedRam, float maxRam) PerformanceMetrics 
+		{
+			get 
 			{
-				if (value) OnInitialized?.Invoke(null, EventArgs.Empty);
-				_isInit = value;
+				if (_performanceMetrics is null || !_performanceMetrics.HasValue || performanceMetricUpdateWatch.Elapsed > PerformanceMetricUpdateInterval)
+				{
+					performanceMetricUpdateWatch.Restart();
+					return (_performanceMetrics = RuntimeMetricClient.GetMetrics()).Value;
+				}
+				return _performanceMetrics.Value;
 			}
 		}
 
-		internal enum placeholderIndex
+		private static (string networkName, IPAddress ipAddress)? _networkInfo = null;
+		internal static (string networkName, IPAddress ipAddress) NetworkInfo
+		{
+			get 
+			{
+				if (_networkInfo is null || !_networkInfo.HasValue || networkInfoUpdateWatch.Elapsed > NetworkInfoUpdateInterval)
+				{
+					IPAddress ipAddr;
+					string netName = GetNetworkName(out ipAddr);
+					networkInfoUpdateWatch.Restart();
+					return (netName, ipAddr);
+				}
+				return _networkInfo.Value;
+			}
+		}
+		
+		//private static byte bitField = 0;
+		//private static bool _isInit = false;
+		//internal static bool IsInit
+		//{
+		//	get => _isInit;
+		//	private set
+		//	{
+		//		if (value) OnLoadPortal?.Invoke();
+		//		_isInit = value;
+		//	}
+		//}
+
+		internal enum PortalPlaceholderIndex
 		{
 			DOWNLOADED_NUM,
 			UPLOADED_NUM,
@@ -66,7 +105,17 @@ namespace Pumpkin.PiCollectionServer
 			EMAIL
 		}
 
-		internal static readonly string[] PlaceHolderStrings =
+		internal enum EmailPlaceholderIndex
+		{
+			DATE,
+			TIME,
+			IP,
+			PORTAL_PORT,
+			UDP_PORT,
+			NETWORK_NAME
+		}
+
+		internal static readonly string[] PortalPlaceHolderStrings =
 		{
 			"{DOWNLOADED_NUM}",
 			"{UPLOADED_NUM}",
@@ -79,7 +128,7 @@ namespace Pumpkin.PiCollectionServer
 			"{EMAIL}"
 		};
 
-		private static Dictionary<string, dynamic> variableData = new Dictionary<string, dynamic>
+		private static Dictionary<string, Func<dynamic>> portalVariableData = new Dictionary<string, Func<dynamic>>
 		{
 			//what can i say i like intellisense on my arrays (also, if and index changes i just need to change the index and intellisense is handy for that)
 			{ PortalPlaceHolderStrings[(int)PortalPlaceholderIndex.DOWNLOADED_NUM], () => ViewModel.Instance.DownloadedPackets },
@@ -93,7 +142,15 @@ namespace Pumpkin.PiCollectionServer
 			{ PortalPlaceHolderStrings[(int)PortalPlaceholderIndex.EMAIL], () => ViewModel.Instance.Email },
 		};
 
-		private static WebpageUpdater updater = new($"{WWWRoot}/{IndexFile}", ref variableData, async (html, context) => await context.Response.WriteAsync(html));
+		internal static readonly string[] EmailPlaceHolderStrings =
+		{
+			"{DATE}",
+			"{TIME}",
+			"{IP}",
+			"{PORTAL_PORT}",
+			"{UDP_PORT}",
+			"{NETWORK_NAME}"
+		};
 
 		private static Dictionary<string, Func<dynamic>> emailVariableData = new Dictionary<string, Func<dynamic>>
 		{
@@ -105,21 +162,31 @@ namespace Pumpkin.PiCollectionServer
 			{ EmailPlaceHolderStrings[(int)EmailPlaceholderIndex.NETWORK_NAME], () => NetworkInfo.networkName }
 		};
 
-			Network.Initialize(UdpPort);
-			Network.DatagramReceived += Network_DatagramReceived;
+		private static WebpageUpdater portalUpdater = new($"{PortalWWWRoot}/{PortalIndexFile}", ref portalVariableData, async (html, context) => await context.Response.WriteAsync(html));
+		private static WebpageUpdater emailUpdater = new($"{EmailWWWRoot}/{EmailIndexFile}", ref emailVariableData);
+
+		private static ushort GetUniquePort(ushort originalPort, params ushort[] exclusions) 
+		{
+			IPGlobalProperties ipProperties = IPGlobalProperties.GetIPGlobalProperties();
+			IEnumerable<IPEndPoint> activeListeners = ipProperties.GetActiveTcpListeners().Concat(ipProperties.GetActiveUdpListeners());
+			ushort port = originalPort;
+			Random portRandom = new();
+			while (activeListeners.Any(con => con.Port == port || exclusions.Contains(port))) port = (ushort)portRandom.Next(1, ushort.MaxValue - 1);
+			return port;
 		}
 
-		private static void Network_DatagramReceived(string msg, IPAddress sender)
-		{
-			string response = null;
-			switch (msg.Trim().ToLower())
-			{
-				case "#show#":
-					response = $"[{ViewModel.Instance.HWID}]: {ipAddress}";
-					break;
-				default:
-					return;
-			}
+		private static ushort GetUniquePort(params ushort[] exclusions) => GetUniquePort(0, exclusions);
+
+        static Program() //First thing that runs
+        {
+			networkInfoUpdateWatch.Start();
+			performanceMetricUpdateWatch.Start();
+			Network.Initialize(UdpPort = GetUniquePort(UdpPort, 443, 8080, 80, 25, 2525));
+			PortalPort = GetUniquePort(PortalPort, 443, 2525, 25);
+			Network.DatagramReceived += Network_DatagramReceived;
+			Initialized += OnInitialized;
+			Initialized?.Invoke();
+		}
 
 		private static void OnInitialized() //2nd thing that runs (async-ish)
 		{
@@ -132,62 +199,32 @@ namespace Pumpkin.PiCollectionServer
 #endif
 		}
 
-		static async Task Main()
+		static async Task Main() //3rd thing that runs (async)
 		{
 			CollectionService.Start(CollectionInterval);
 			var host = new WebHostBuilder()
 				.UseKestrel()
-				.UseUrls($"http://localhost:{PortalPort}", $"http://{ipAddress}:{PortalPort}/")
+				.UseUrls($"http://localhost:{PortalPort}", $"http://{NetworkInfo.ipAddress}:{PortalPort}/")
 				.Configure(app => app.Run(async (context) => await HandleRequest(context)))
 				.Build();
 
 			await host.RunAsync();
 		}
 
-		static void UpdateDataTable()
+		private static void Network_DatagramReceived(string msg, IPAddress sender)
 		{
-			for (int i = 0; i < PlaceHolderStrings.Length; i++)
+			string response = null;
+			switch (msg.Trim().ToLower())
 			{
-				dynamic newData;
-				switch ((placeholderIndex)i)
-				{
-					case placeholderIndex.DOWNLOADED_NUM:
-						newData = ViewModel.Instance.DownloadedPackets;
-						break;
-					case placeholderIndex.UPLOADED_NUM:
-						newData = ViewModel.Instance.UploadedPackets;
-						break;
-					case placeholderIndex.THROUGHPUT_NUM:
-						newData = ViewModel.Instance.Throughput;
-						break;
-					case placeholderIndex.ERROR_NUM:
-						newData = ViewModel.Instance.Errors;
-						break;
-					case placeholderIndex.CONNECTION_STRING:
-						newData = $"{networkName = GetNetworkName(out ipAddress)}  [{ipAddress}]";
-						break;
-					case placeholderIndex.PUMPKIN_ID:
-						newData = ViewModel.Instance.HWID;
-						break;
-					case placeholderIndex.CPU_NUM:
-						lastMetrics = RuntimeMetricClient.GetMetrics();
-						newData = $"{lastMetrics.cpuPercentage:0.0}%";
-						break;
-					case placeholderIndex.RAM_NUM:
-						lastMetrics = RuntimeMetricClient.GetMetrics();
-						newData = $"{lastMetrics.usedRam:0.0} / {lastMetrics.maxRam:0.0} GB";
-						break;
-					default:
-						newData = "Whoops! Error";
-						break;
-				}
+				case "#show#":
+					response = $"[{ViewModel.Instance.HWID}] IPv4: {NetworkInfo.ipAddress}";
+					break;
+				default:
+					return;
+			}
 
-				//boolean logic is so much easier in c++
-				if (!IsInit)
-				{
-					bitField ^= (byte)(1 << i);
-					IsInit = (bitField & byte.MaxValue) == byte.MaxValue;
-				}
+			Network.Send(response, sender.ToString(), UdpPort);
+		}
 
 		static async Task HandleRequest(HttpContext context)
 		{
