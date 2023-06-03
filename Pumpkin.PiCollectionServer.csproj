@@ -15,6 +15,7 @@
   <ItemGroup>
     <Reference Include="Pumpkin.Networking">
       <HintPath>..\Pumpkin.Networking\bin\Release\net7.0\publish\Pumpkin.Networking.dll</HintPath>
+      <Private>True</Private>
     </Reference>
   </ItemGroup>
 
@@ -22,16 +23,22 @@
     <None Update="ViewModel\Model.json">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
-    <None Update="Web\assets\bootstrap\css\bootstrap-grid.min.css">
+    <None Update="Web\Email\EmailBody.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Web\assets\bootstrap\css\bootstrap-reboot.min.css">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    <None Update="Web\Portal\assets\bootstrap\css\bootstrap-grid.min.css">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="Web\assets\bootstrap\css\bootstrap.min.css">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    <None Update="Web\Portal\assets\bootstrap\css\bootstrap-grid.min.css">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="Web\assets\bootstrap\js\bootstrap.bundle.min.js">
+    <None Update="Web\Portal\assets\bootstrap\css\bootstrap-grid.min.css">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Web\Portal\assets\bootstrap\css\bootstrap-grid.min.css">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Web\Portal\assets\bootstrap\css\bootstrap-grid.min.css">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="Web\assets\images\logo5.png">

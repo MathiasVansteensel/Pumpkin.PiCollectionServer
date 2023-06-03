@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.Threading;
+using System.IO;
 
 namespace Pumpkin.PiCollectionServer;
 
@@ -102,6 +104,11 @@ public class ViewModel
 			}
 			return _instance;
 		}
+		private set => _instance = value;
+	}
+
+	public ViewModel() 
+	{
 	}
 
 	private ViewModel()
@@ -128,7 +135,8 @@ public class ViewModel
 	{
 		using (var stream = File.Open(ModelFile, FileMode.OpenOrCreate, FileAccess.Write)) 
 		{
-			await JsonSerializer.SerializeAsync(stream, this);
+			stream.SetLength(0);
+			await JsonSerializer.SerializeAsync(stream, Instance);
 			await stream.FlushAsync(); //this buffer crap can cause issue with file lock, but should be fine i guess (i want unbuffered streams, but i'm not gonna write one rn)
 			stream.Close();
 		}

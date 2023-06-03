@@ -13,8 +13,11 @@ namespace Pumpkin.PiCollectionServer
 {
 	internal class Program
 	{
-		const string WWWRoot = "Web";
-		const string IndexFile = "index.html";
+		const string PortalWWWRoot = "Web/Portal";
+		const string EmailWWWRoot = "Web/Email";
+		const string PortalIndexFile = "index.html";
+		const string EmailIndexFile = "EmailBody.html";
+		const string EmailFormKey = "email";
 		const string EmailSubject = "{0} - 🎃Pumpkin Status Update🎃";
 		const string MailBody = 
 		"Dear User,\r\n\r\n" +
@@ -28,8 +31,9 @@ namespace Pumpkin.PiCollectionServer
 		"Best regards,\r\n\r\n" +
 		"The Pumpkin Smarthome team 🎃";
 
-		const ushort PortalPort = 6969;
-		const ushort UdpPort = 8888;
+		private static readonly TimeSpan NetworkInfoUpdateInterval = TimeSpan.FromMinutes(10);
+		private static readonly TimeSpan PerformanceMetricUpdateInterval = TimeSpan.FromMilliseconds(350);
+		private static readonly TimeSpan CollectionInterval = TimeSpan.FromMinutes(1);
 
 		public static event EventHandler OnInitialized;
 
@@ -58,7 +62,8 @@ namespace Pumpkin.PiCollectionServer
 			CONNECTION_STRING,
 			PUMPKIN_ID,
 			CPU_NUM,
-			RAM_NUM
+			RAM_NUM,
+			EMAIL
 		}
 
 		internal static readonly string[] PlaceHolderStrings =
@@ -70,36 +75,35 @@ namespace Pumpkin.PiCollectionServer
 			"{CONNECTION_STRING}",
 			"{PUMPKIN_ID}",
 			"{CPU_NUM}",
-			"{RAM_NUM}"
+			"{RAM_NUM}",
+			"{EMAIL}"
 		};
 
 		private static Dictionary<string, dynamic> variableData = new Dictionary<string, dynamic>
 		{
 			//what can i say i like intellisense on my arrays (also, if and index changes i just need to change the index and intellisense is handy for that)
-			//i am also aware that initializing these values is useless but it doesn't hurt to get a couple values from the cpu counter before requesting actual values
-			{ PlaceHolderStrings[(int)placeholderIndex.DOWNLOADED_NUM], ViewModel.Instance.DownloadedPackets },
-			{ PlaceHolderStrings[(int)placeholderIndex.UPLOADED_NUM], ViewModel.Instance.UploadedPackets },
-			{ PlaceHolderStrings[(int)placeholderIndex.THROUGHPUT_NUM], ViewModel.Instance.Throughput },
-			{ PlaceHolderStrings[(int)placeholderIndex.ERROR_NUM], ViewModel.Instance.Errors },
-			{ PlaceHolderStrings[(int)placeholderIndex.CONNECTION_STRING], $"{networkName = GetNetworkName(out ipAddress)}  [{ipAddress}]"},
-			{ PlaceHolderStrings[(int)placeholderIndex.PUMPKIN_ID], ViewModel.Instance.HWID },
-			{ PlaceHolderStrings[(int)placeholderIndex.CPU_NUM], $"{lastMetrics.cpuPercentage:0.0}%" },
-			{ PlaceHolderStrings[(int)placeholderIndex.RAM_NUM], $"{lastMetrics.usedRam:0.0} / {lastMetrics.maxRam:0.0} GB" },
+			{ PortalPlaceHolderStrings[(int)PortalPlaceholderIndex.DOWNLOADED_NUM], () => ViewModel.Instance.DownloadedPackets },
+			{ PortalPlaceHolderStrings[(int)PortalPlaceholderIndex.UPLOADED_NUM], () => ViewModel.Instance.UploadedPackets },
+			{ PortalPlaceHolderStrings[(int)PortalPlaceholderIndex.THROUGHPUT_NUM], () => ViewModel.Instance.Throughput },
+			{ PortalPlaceHolderStrings[(int)PortalPlaceholderIndex.ERROR_NUM], () => ViewModel.Instance.Errors },
+			{ PortalPlaceHolderStrings[(int)PortalPlaceholderIndex.CONNECTION_STRING], () => $"{NetworkInfo.networkName}  [{NetworkInfo.ipAddress}]"},
+			{ PortalPlaceHolderStrings[(int)PortalPlaceholderIndex.PUMPKIN_ID], () => ViewModel.Instance.HWID },
+			{ PortalPlaceHolderStrings[(int)PortalPlaceholderIndex.CPU_NUM], () => $"{PerformanceMetrics.cpuPercentage:0.0}%" },
+			{ PortalPlaceHolderStrings[(int)PortalPlaceholderIndex.RAM_NUM], () => $"{PerformanceMetrics.usedRam:0.0} / {PerformanceMetrics.maxRam:0.0} GB" },
+			{ PortalPlaceHolderStrings[(int)PortalPlaceholderIndex.EMAIL], () => ViewModel.Instance.Email },
 		};
 
 		private static WebpageUpdater updater = new($"{WWWRoot}/{IndexFile}", ref variableData, async (html, context) => await context.Response.WriteAsync(html));
 
-        static Program()
-        {
-			OnInitialized += (sender, e) =>
-			{
-				MailClient.MessageSent += (sender, msg) => Console.WriteLine($"Email sent to {string.Join(',', msg.To)}");
-				DateTime today = DateTime.Now;
-				string shortDate = today.ToString("ddd M MMM yyyy");
-				string subject = string.Format(EmailSubject, shortDate);
-				string body = string.Format(MailBody, shortDate, today.ToShortTimeString(), ipAddress, networkName);
-				MailClient.SendEmail(ViewModel.Instance.Email, subject, body);
-			};
+		private static Dictionary<string, Func<dynamic>> emailVariableData = new Dictionary<string, Func<dynamic>>
+		{
+			{ EmailPlaceHolderStrings[(int)EmailPlaceholderIndex.DATE], () => ShortDateToday },
+			{ EmailPlaceHolderStrings[(int)EmailPlaceholderIndex.TIME], () => DateTime.Now.ToShortTimeString() },
+			{ EmailPlaceHolderStrings[(int)EmailPlaceholderIndex.IP], () => NetworkInfo.ipAddress },
+			{ EmailPlaceHolderStrings[(int)EmailPlaceholderIndex.PORTAL_PORT], () => PortalPort},
+			{ EmailPlaceHolderStrings[(int)EmailPlaceholderIndex.UDP_PORT], () => UdpPort },
+			{ EmailPlaceHolderStrings[(int)EmailPlaceholderIndex.NETWORK_NAME], () => NetworkInfo.networkName }
+		};
 
 			Network.Initialize(UdpPort);
 			Network.DatagramReceived += Network_DatagramReceived;
@@ -117,11 +121,20 @@ namespace Pumpkin.PiCollectionServer
 					return;
 			}
 
-			Network.Send(response, sender.ToString(), UdpPort);
+		private static void OnInitialized() //2nd thing that runs (async-ish)
+		{
+#if !DEBUG
+			MailClient.MessageSent += (sender, msg) => Console.WriteLine($"Email sent to {string.Join(',', msg.To)}");
+			string subject = string.Format(EmailSubject, ShortDateToday);
+			MailClient.SendEmail(ViewModel.Instance.Email, subject, emailUpdater.GetUpdated(), true);
+#else
+			Console.WriteLine($"[DEBUG]: would have sent mail to {ViewModel.Instance.Email}");
+#endif
 		}
 
 		static async Task Main()
 		{
+			CollectionService.Start(CollectionInterval);
 			var host = new WebHostBuilder()
 				.UseKestrel()
 				.UseUrls($"http://localhost:{PortalPort}", $"http://{ipAddress}:{PortalPort}/")
@@ -176,10 +189,6 @@ namespace Pumpkin.PiCollectionServer
 					IsInit = (bitField & byte.MaxValue) == byte.MaxValue;
 				}
 
-				variableData[PlaceHolderStrings[i]] = newData;
-			}
-		}
-
 		static async Task HandleRequest(HttpContext context)
 		{
 			string path = context.Request.Path;
@@ -188,15 +197,73 @@ namespace Pumpkin.PiCollectionServer
 			switch (path) //for special cases so i can add em here
 			{
 				case "/":
-					UpdateDataTable();
-					updater.Update(context);
+					portalUpdater.Update(context);
+					return;
+				case "/submit-email":
+					var oldEmail = ViewModel.Instance.Email;
+					try { ViewModel.Instance.Email = context.Request.Form[EmailFormKey]; }
+					catch (Exception) {}
+					finally 
+					{ 
+						context.Response.Redirect("/", true);
+						if (oldEmail != ViewModel.Instance.Email) Console.WriteLine($"Email changed [{oldEmail} > {ViewModel.Instance.Email}]");
+					}
 					return;
 				default:
-					requestPath = WWWRoot + path;
+					requestPath = PortalWWWRoot + path;
 					break;
 			}
 			await context.Response.SendFileAsync(requestPath);
 		}
+
+		//static void UpdateDataTable()
+		//{
+		//	for (int i = 0; i < PortalPlaceHolderStrings.Length; i++)
+		//	{
+		//		dynamic newData;
+		//		switch ((PortalPlaceholderIndex)i)
+		//		{
+		//			case PortalPlaceholderIndex.DOWNLOADED_NUM:
+		//				newData = ViewModel.Instance.DownloadedPackets;
+		//				break;
+		//			case PortalPlaceholderIndex.UPLOADED_NUM:
+		//				newData = ViewModel.Instance.UploadedPackets;
+		//				break;
+		//			case PortalPlaceholderIndex.THROUGHPUT_NUM:
+		//				newData = ViewModel.Instance.Throughput;
+		//				break;
+		//			case PortalPlaceholderIndex.ERROR_NUM:
+		//				newData = ViewModel.Instance.Errors;
+		//				break;
+		//			case PortalPlaceholderIndex.CONNECTION_STRING:
+		//				newData = $"{networkName = GetNetworkName(out ipAddress)}  [{ipAddress}]";
+		//				break;
+		//			case PortalPlaceholderIndex.PUMPKIN_ID:
+		//				newData = ViewModel.Instance.HWID;
+		//				break;
+		//			case PortalPlaceholderIndex.CPU_NUM:
+		//				lastMetrics = RuntimeMetricClient.GetMetrics();
+		//				newData = $"{lastMetrics.cpuPercentage:0.0}%";
+		//				break;
+		//			case PortalPlaceholderIndex.RAM_NUM:
+		//				lastMetrics = RuntimeMetricClient.GetMetrics();
+		//				newData = $"{lastMetrics.usedRam:0.0} / {lastMetrics.maxRam:0.0} GB";
+		//				break;
+		//			default:
+		//				newData = "Whoops! Error";
+		//				break;
+		//		}
+
+		//		//boolean logic is so much easier in c++
+		//		if (!IsInit)
+		//		{
+		//			bitField ^= (byte)(1 << i);
+		//			IsInit = (bitField & byte.MaxValue) == byte.MaxValue;
+		//		}
+
+		//		portalVariableData[PortalPlaceHolderStrings[i]] = newData;
+		//	}
+		//}
 
 		//what a mess
 		public static string GetNetworkName(out IPAddress ip)

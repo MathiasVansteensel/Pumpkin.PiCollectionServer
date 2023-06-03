@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #333333;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 950px;
+            margin: 0 auto;
+            text-align: center;
+            padding: 20px;
+            display: flex;
+        }
+
+        .logo {
+            display: block;
+            margin: 0;
+            max-width: 150px;
+            height: max-content;
+        }
+
+
+        .content {
+            flex: 1;
+            padding-left: 20px;
+            margin-right: 50px;
+        }
+
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+
+        .message {
+            margin-bottom: 20px;
+        }
+
+        .instructions {
+            margin-bottom: 20px;
+        }
+
+        .link {
+            color: #007bff;
+            text-decoration: none;
+        }
+
+        .footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 12px;
+            color: #777777;
+        }
+
+        .connection {
+            flex: 1;
+            background-color: #007bff;
+            color: #ffffff;
+            border-radius: 5px;
+            max-width: 15%;
+            padding: 20px;
+            text-align: left;
+        }
+
+        .connection-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+
+        .connection-stats {
+            margin-bottom: 10px;
+        }
+
+        .connection-label {
+            font-weight: bold;
+            display: inline-block;
+            width: 120px;
+        }
+
+        .connection-value {
+            display: inline-block;
+            width: 120px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <img src="http://cdn.pumpkinapp.be/logo/Logo%201024x.png" alt="Pumpkin Smarthome" class="logo">
+        <div class="content">
+            <h1><strong>Dear User,</strong></h1>
+            <p class="mbr-text mbr-fonts-style display-7">
+                We are pleased to inform you that your Smart Home Hub has <strong>successfully come online</strong>.
+                As of <strong>{DATE}</strong> at <strong>{TIME}</strong>, the hub connected to your network and is ready for
+                further setup, or if already setup, to serve your smart home needs.<br><br>To access the <strong>
+                    web portal
+                </strong> and view comprehensive statistics about your smart home system, simply enter the hub's
+                IP address and port into your preferred web browser (like so: <strong>http://{IP}:{PORTAL_PORT}/</strong>). More
+                details concerning the connection of your hub can be found to the right, in the portion labeled "Connection".<br><br>You can also use any UDP client
+                (app/program) to broadcast the message "#show#" (without quotes) on the broadcast address
+                <strong>(255.255.255.255)</strong> on <strong>port {UDP_PORT}</strong> to retrieve the IP and ID of your device.
+                For a simpler, more first-party approach, you can also download the <strong>Pumpkin wizard</strong> from
+                our website (<a href="https://pumpkinapp.be/download/wizard" class="link">pumpkinapp.be/download/wizard</a>)
+                to finish setting up your device.<br><br>We highly recommend bookmarking the web portal for quick and
+                easy access in the future. It provides valuable insights and allows you to keep an eye on the network
+                side of your smart home system.<br><br>Visit our website (<a href="https://pumpkinapp.be" class="link">pumpkinapp.be</a>) if you have any questions.
+                <br><br><br>Best regards,<br><br><br>The
+                Pumpkin Smarthome team 🎃<br><br>
+            </p>
+        </div>
+        <div class="connection">
+            <div class="connection-title">Connection</div>
+            <div class="connection-stats">
+                <span class="connection-label">IP:</span>
+                <span class="connection-value">{IP}</span>
+            </div>
+            <div class="connection-stats">
+                <span class="connection-label">Portal Port:</span>
+                <span class="connection-value">{PORTAL_PORT}</span>
+            </div>
+            <div class="connection-stats">
+                <span class="connection-label">UDP Port:</span>
+                <span class="connection-value">{UDP_PORT}</span>
+            </div>
+            <div class="connection-stats">
+                <span class="connection-label">Network Interface:</span>
+                <span class="connection-value">{NETWORK_NAME}</span>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
