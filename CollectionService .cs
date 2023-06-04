@@ -2,6 +2,7 @@
 using Pumpkin.Networking;
 using System.Collections.Concurrent;
 using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json;
 using System.Timers;
 using Timer = System.Timers.Timer;
@@ -44,27 +45,28 @@ public static class CollectionService
 	private static void OnMessageReceived(PumpkinMessage msg)
 	{
 		messageBuffer.Add(msg);
-		//ViewModel.Instance.DownloadedPackets++;
+		ViewModel.Instance.DownloadedPackets++;
 	}
 
 	private static async Task Collect()
 	{
-		//if (messageBuffer.Message.Count == 0) return;
+		if (messageBuffer.Count == 0) return;
 		byte[] jsonBuffer = await messageBuffer.SerializeAsync();
 		await messageBuffer.Clear();
-		new Thread(async () =>
-		{
-			HttpContent content = new ByteArrayContent(jsonBuffer);
-			content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-			var response = await httpClient.PostAsync(RemoteServerPath, content);
-			//if (response.IsSuccessStatusCode)
-			//{
-			//	ViewModel.Instance.UploadedPackets++;
-			//	ViewModel.Instance.Throughput += jsonBuffer.Length;
-			//}
-			//else ViewModel.Instance.Errors++;
-			if (!IsRunning) Console.WriteLine("Collection service message buffer flushed");
-		}).Start();
+		Console.WriteLine($"Sent:\n{Encoding.UTF8.GetString(jsonBuffer)}");
+		//new Thread(async () =>
+		//{
+		//	HttpContent content = new ByteArrayContent(jsonBuffer);
+		//	content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+		//	var response = await httpClient.PostAsync(RemoteServerPath, content);
+		//	if (response.IsSuccessStatusCode)
+		//	{
+		//		ViewModel.Instance.UploadedPackets++;
+		//		ViewModel.Instance.Throughput += jsonBuffer.Length;
+		//	}
+		//	else ViewModel.Instance.Errors++;
+		//	if (!IsRunning) Console.WriteLine("Collection service message buffer flushed");
+		//}).Start();
 	}
 
 	public static async void Stop()

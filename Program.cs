@@ -193,7 +193,7 @@ namespace Pumpkin.PiCollectionServer
 #if !DEBUG
 			MailClient.MessageSent += (sender, msg) => Console.WriteLine($"Email sent to {string.Join(',', msg.To)}");
 			string subject = string.Format(EmailSubject, ShortDateToday);
-			MailClient.SendEmail(ViewModel.Instance.Email, subject, emailUpdater.GetUpdated(), true);
+			MailClient.SendEmail(ViewModel.Instance.Email, subject, emailUpdater.GetUpdated());
 #else
 			Console.WriteLine($"[DEBUG]: would have sent mail to {ViewModel.Instance.Email}");
 #endif
