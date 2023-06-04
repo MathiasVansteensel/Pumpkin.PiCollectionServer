@@ -40,7 +40,7 @@ namespace Pumpkin.PiCollectionServer
 
 		private static ushort PortalPort { get; set; } = 6969;
 		private static ushort UdpPort { get; set; } = 8888;
-		private static string ShortDateToday 
+		private static string ShortDateToday
 		{
 			get => DateTime.Today.ToString("ddd d MMM yyyy");
 		}
@@ -51,9 +51,9 @@ namespace Pumpkin.PiCollectionServer
 		public static event Action Initialized;
 
 		private static (float cpuPercentage, float usedRam, float maxRam)? _performanceMetrics = null;
-		private static (float cpuPercentage, float usedRam, float maxRam) PerformanceMetrics 
+		private static (float cpuPercentage, float usedRam, float maxRam) PerformanceMetrics
 		{
-			get 
+			get
 			{
 				if (_performanceMetrics is null || !_performanceMetrics.HasValue || performanceMetricUpdateWatch.Elapsed > PerformanceMetricUpdateInterval)
 				{
@@ -67,7 +67,7 @@ namespace Pumpkin.PiCollectionServer
 		private static (string networkName, IPAddress ipAddress)? _networkInfo = null;
 		internal static (string networkName, IPAddress ipAddress) NetworkInfo
 		{
-			get 
+			get
 			{
 				if (_networkInfo is null || !_networkInfo.HasValue || networkInfoUpdateWatch.Elapsed > NetworkInfoUpdateInterval)
 				{
@@ -79,7 +79,7 @@ namespace Pumpkin.PiCollectionServer
 				return _networkInfo.Value;
 			}
 		}
-		
+
 		//private static byte bitField = 0;
 		//private static bool _isInit = false;
 		//internal static bool IsInit
@@ -165,7 +165,7 @@ namespace Pumpkin.PiCollectionServer
 		private static WebpageUpdater portalUpdater = new($"{PortalWWWRoot}/{PortalIndexFile}", ref portalVariableData, async (html, context) => await context.Response.WriteAsync(html));
 		private static WebpageUpdater emailUpdater = new($"{EmailWWWRoot}/{EmailIndexFile}", ref emailVariableData);
 
-		private static ushort GetUniquePort(ushort originalPort, params ushort[] exclusions) 
+		private static ushort GetUniquePort(ushort originalPort, params ushort[] exclusions)
 		{
 			IPGlobalProperties ipProperties = IPGlobalProperties.GetIPGlobalProperties();
 			IEnumerable<IPEndPoint> activeListeners = ipProperties.GetActiveTcpListeners().Concat(ipProperties.GetActiveUdpListeners());
@@ -177,8 +177,8 @@ namespace Pumpkin.PiCollectionServer
 
 		private static ushort GetUniquePort(params ushort[] exclusions) => GetUniquePort(0, exclusions);
 
-        static Program() //First thing that runs
-        {
+		static Program() //First thing that runs
+		{
 			networkInfoUpdateWatch.Start();
 			performanceMetricUpdateWatch.Start();
 			Network.Initialize(UdpPort = GetUniquePort(UdpPort, 443, 8080, 80, 25, 2525));
@@ -239,9 +239,9 @@ namespace Pumpkin.PiCollectionServer
 				case "/submit-email":
 					var oldEmail = ViewModel.Instance.Email;
 					try { ViewModel.Instance.Email = context.Request.Form[EmailFormKey]; }
-					catch (Exception) {}
-					finally 
-					{ 
+					catch (Exception) { }
+					finally
+					{
 						context.Response.Redirect("/", true);
 						if (oldEmail != ViewModel.Instance.Email) Console.WriteLine($"Email changed [{oldEmail} > {ViewModel.Instance.Email}]");
 					}
@@ -310,7 +310,7 @@ namespace Pumpkin.PiCollectionServer
 			return nic?.Name ?? "Not Connected";
 		}
 
-		private static IPAddress GetLocalIp() 
+		private static IPAddress GetLocalIp()
 		{
 			using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.IP))
 			{

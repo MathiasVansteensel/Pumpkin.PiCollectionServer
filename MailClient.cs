@@ -11,7 +11,7 @@ internal static class MailClient //using https://app.elasticemail.com/
 {
 	//I know, not very secure, 2min with cheat engine and you could have the password... but idc i dont have time for "SecureString" of smth similar
 	private const string Password = "3A6AC4DBB90E3C0D3E59289C4A30B8FADD6B";
-	private const string Username = "pumpkin.smarthome@gmail.com";
+	private const string Username = "info@pumpkinapp.be";
 	private const ushort Port = 2525;
 	private const string Server = "smtp.elasticemail.com";
 
