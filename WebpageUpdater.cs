@@ -28,7 +28,6 @@ internal class WebpageUpdater
 	{
 		originalHtml = File.ReadAllText(filename);
 		this.data = data;
-        this.updateAction = null;
 	}
 
 	public string GetUpdated() 
@@ -37,7 +36,9 @@ internal class WebpageUpdater
         for (int i = 0; i < data.Count; i++)
         {
             var currentPlaceholder = data.ElementAt(i);
-            html = html.Replace(currentPlaceholder.Key, currentPlaceholder.Value?.Invoke()?.ToString() ?? "Whoops! Error", StringComparison.Ordinal);
+            dynamic value = currentPlaceholder.Value?.Invoke();
+
+			html = html.Replace(currentPlaceholder.Key, value.ToString() ?? "Whoops! Error", StringComparison.Ordinal);
         }
         LastUpdated = html;
         return html;
@@ -45,7 +46,8 @@ internal class WebpageUpdater
 
     public void Update(HttpContext context) 
     {
+        if (updateAction is null) return;
         string updated = GetUpdated();
-        updateAction?.Invoke(updated, context);
+        updateAction(updated, context);
     }
 }

@@ -16,7 +16,8 @@ namespace Pumpkin.PiCollectionServer
 		const string PortalWWWRoot = "Web/Portal";
 		const string EmailWWWRoot = "Web/Email";
 		const string PortalIndexFile = "index.html";
-		const string EmailIndexFile = "testMail.html";
+		const string EmailIndexFile = "EmailBody.html";
+		const string EmailFormKey = "email";
 		const string EmailSubject = "{0} - 🎃Pumpkin Status Update🎃";
 		//const string MailBody =
 		//"Dear User,<br/><br/>" +
@@ -35,10 +36,11 @@ namespace Pumpkin.PiCollectionServer
 
 		private static readonly TimeSpan NetworkInfoUpdateInterval = TimeSpan.FromMinutes(10);
 		private static readonly TimeSpan PerformanceMetricUpdateInterval = TimeSpan.FromMilliseconds(350);
+		private static readonly TimeSpan CollectionInterval = TimeSpan.FromMinutes(1);
 
 		private static ushort PortalPort { get; set; } = 6969;
 		private static ushort UdpPort { get; set; } = 8888;
-		private static string ShortDateToday 
+		private static string ShortDateToday
 		{
 			get => DateTime.Today.ToString("ddd d MMM yyyy");
 		}
@@ -49,9 +51,9 @@ namespace Pumpkin.PiCollectionServer
 		public static event Action Initialized;
 
 		private static (float cpuPercentage, float usedRam, float maxRam)? _performanceMetrics = null;
-		private static (float cpuPercentage, float usedRam, float maxRam) PerformanceMetrics 
+		private static (float cpuPercentage, float usedRam, float maxRam) PerformanceMetrics
 		{
-			get 
+			get
 			{
 				if (_performanceMetrics is null || !_performanceMetrics.HasValue || performanceMetricUpdateWatch.Elapsed > PerformanceMetricUpdateInterval)
 				{
@@ -65,7 +67,7 @@ namespace Pumpkin.PiCollectionServer
 		private static (string networkName, IPAddress ipAddress)? _networkInfo = null;
 		internal static (string networkName, IPAddress ipAddress) NetworkInfo
 		{
-			get 
+			get
 			{
 				if (_networkInfo is null || !_networkInfo.HasValue || networkInfoUpdateWatch.Elapsed > NetworkInfoUpdateInterval)
 				{
@@ -77,7 +79,7 @@ namespace Pumpkin.PiCollectionServer
 				return _networkInfo.Value;
 			}
 		}
-		
+
 		//private static byte bitField = 0;
 		//private static bool _isInit = false;
 		//internal static bool IsInit
@@ -99,7 +101,8 @@ namespace Pumpkin.PiCollectionServer
 			CONNECTION_STRING,
 			PUMPKIN_ID,
 			CPU_NUM,
-			RAM_NUM
+			RAM_NUM,
+			EMAIL
 		}
 
 		internal enum EmailPlaceholderIndex
@@ -121,13 +124,13 @@ namespace Pumpkin.PiCollectionServer
 			"{CONNECTION_STRING}",
 			"{PUMPKIN_ID}",
 			"{CPU_NUM}",
-			"{RAM_NUM}"
+			"{RAM_NUM}",
+			"{EMAIL}"
 		};
 
 		private static Dictionary<string, Func<dynamic>> portalVariableData = new Dictionary<string, Func<dynamic>>
 		{
 			//what can i say i like intellisense on my arrays (also, if and index changes i just need to change the index and intellisense is handy for that)
-			//i am also aware that initializing these values is useless but it doesn't hurt to get a couple values from the cpu counter before requesting actual values
 			{ PortalPlaceHolderStrings[(int)PortalPlaceholderIndex.DOWNLOADED_NUM], () => ViewModel.Instance.DownloadedPackets },
 			{ PortalPlaceHolderStrings[(int)PortalPlaceholderIndex.UPLOADED_NUM], () => ViewModel.Instance.UploadedPackets },
 			{ PortalPlaceHolderStrings[(int)PortalPlaceholderIndex.THROUGHPUT_NUM], () => ViewModel.Instance.Throughput },
@@ -136,6 +139,7 @@ namespace Pumpkin.PiCollectionServer
 			{ PortalPlaceHolderStrings[(int)PortalPlaceholderIndex.PUMPKIN_ID], () => ViewModel.Instance.HWID },
 			{ PortalPlaceHolderStrings[(int)PortalPlaceholderIndex.CPU_NUM], () => $"{PerformanceMetrics.cpuPercentage:0.0}%" },
 			{ PortalPlaceHolderStrings[(int)PortalPlaceholderIndex.RAM_NUM], () => $"{PerformanceMetrics.usedRam:0.0} / {PerformanceMetrics.maxRam:0.0} GB" },
+			{ PortalPlaceHolderStrings[(int)PortalPlaceholderIndex.EMAIL], () => ViewModel.Instance.Email },
 		};
 
 		internal static readonly string[] EmailPlaceHolderStrings =
@@ -150,8 +154,6 @@ namespace Pumpkin.PiCollectionServer
 
 		private static Dictionary<string, Func<dynamic>> emailVariableData = new Dictionary<string, Func<dynamic>>
 		{
-			//what can i say i like intellisense on my arrays (also, if and index changes i just need to change the index and intellisense is handy for that)
-			//i am also aware that initializing these values is useless but it doesn't hurt to get a couple values from the cpu counter before requesting actual values
 			{ EmailPlaceHolderStrings[(int)EmailPlaceholderIndex.DATE], () => ShortDateToday },
 			{ EmailPlaceHolderStrings[(int)EmailPlaceholderIndex.TIME], () => DateTime.Now.ToShortTimeString() },
 			{ EmailPlaceHolderStrings[(int)EmailPlaceholderIndex.IP], () => NetworkInfo.ipAddress },
@@ -163,7 +165,7 @@ namespace Pumpkin.PiCollectionServer
 		private static WebpageUpdater portalUpdater = new($"{PortalWWWRoot}/{PortalIndexFile}", ref portalVariableData, async (html, context) => await context.Response.WriteAsync(html));
 		private static WebpageUpdater emailUpdater = new($"{EmailWWWRoot}/{EmailIndexFile}", ref emailVariableData);
 
-		private static ushort GetUniquePort(ushort originalPort, params ushort[] exclusions) 
+		private static ushort GetUniquePort(ushort originalPort, params ushort[] exclusions)
 		{
 			IPGlobalProperties ipProperties = IPGlobalProperties.GetIPGlobalProperties();
 			IEnumerable<IPEndPoint> activeListeners = ipProperties.GetActiveTcpListeners().Concat(ipProperties.GetActiveUdpListeners());
@@ -175,8 +177,8 @@ namespace Pumpkin.PiCollectionServer
 
 		private static ushort GetUniquePort(params ushort[] exclusions) => GetUniquePort(0, exclusions);
 
-        static Program() //First thing that runs
-        {
+		static Program() //First thing that runs
+		{
 			networkInfoUpdateWatch.Start();
 			performanceMetricUpdateWatch.Start();
 			Network.Initialize(UdpPort = GetUniquePort(UdpPort, 443, 8080, 80, 25, 2525));
@@ -191,14 +193,15 @@ namespace Pumpkin.PiCollectionServer
 #if !DEBUG
 			MailClient.MessageSent += (sender, msg) => Console.WriteLine($"Email sent to {string.Join(',', msg.To)}");
 			string subject = string.Format(EmailSubject, ShortDateToday);
-			MailClient.SendEmail(ViewModel.Instance.Email, subject, emailUpdater.GetUpdated(), true);
+			MailClient.SendEmail(ViewModel.Instance.Email, subject, emailUpdater.GetUpdated());
 #else
-			Console.WriteLine("[DEBUG]: would have sent mail");
+			Console.WriteLine($"[DEBUG]: would have sent mail to {ViewModel.Instance.Email}");
 #endif
 		}
 
 		static async Task Main() //3rd thing that runs (async)
 		{
+			CollectionService.Start(CollectionInterval);
 			var host = new WebHostBuilder()
 				.UseKestrel()
 				.UseUrls($"http://localhost:{PortalPort}", $"http://{NetworkInfo.ipAddress}:{PortalPort}/")
@@ -221,6 +224,33 @@ namespace Pumpkin.PiCollectionServer
 			}
 
 			Network.Send(response, sender.ToString(), UdpPort);
+		}
+
+		static async Task HandleRequest(HttpContext context)
+		{
+			string path = context.Request.Path;
+			string requestPath = string.Empty;
+
+			switch (path) //for special cases so i can add em here
+			{
+				case "/":
+					portalUpdater.Update(context);
+					return;
+				case "/submit-email":
+					var oldEmail = ViewModel.Instance.Email;
+					try { ViewModel.Instance.Email = context.Request.Form[EmailFormKey]; }
+					catch (Exception) { }
+					finally
+					{
+						context.Response.Redirect("/", true);
+						if (oldEmail != ViewModel.Instance.Email) Console.WriteLine($"Email changed [{oldEmail} > {ViewModel.Instance.Email}]");
+					}
+					return;
+				default:
+					requestPath = PortalWWWRoot + path;
+					break;
+			}
+			await context.Response.SendFileAsync(requestPath);
 		}
 
 		//static void UpdateDataTable()
@@ -272,23 +302,6 @@ namespace Pumpkin.PiCollectionServer
 		//	}
 		//}
 
-		static async Task HandleRequest(HttpContext context)
-		{
-			string path = context.Request.Path;
-			string requestPath = string.Empty;
-
-			switch (path) //for special cases so i can add em here
-			{
-				case "/":
-					portalUpdater.Update(context);
-					return;
-				default:
-					requestPath = PortalWWWRoot + path;
-					break;
-			}
-			await context.Response.SendFileAsync(requestPath);
-		}
-
 		//what a mess
 		public static string GetNetworkName(out IPAddress ip)
 		{
@@ -297,7 +310,7 @@ namespace Pumpkin.PiCollectionServer
 			return nic?.Name ?? "Not Connected";
 		}
 
-		private static IPAddress GetLocalIp() 
+		private static IPAddress GetLocalIp()
 		{
 			using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.IP))
 			{

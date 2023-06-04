@@ -16,7 +16,7 @@ internal static class RuntimeMetricClient
 	private static PerformanceCounter _cpuCounter;
 	//using P/Invoke now (for windows anyway) bc thats way faster
 	//private static PerformanceCounter _ramCounter = new PerformanceCounter("Memory", "Available MBytes");
-	
+
 	const string linuxPerformanceBashCommand = "top -bn 1 | grep -E '^%?Cpu|MiB Mem :'";
 	const string linuxDecimalNumberRegex = @"([0-9.]+\.[0-9.])";
 
@@ -39,15 +39,15 @@ internal static class RuntimeMetricClient
 
 	private static OS currentOs;
 
-	public enum OS 
+	public enum OS
 	{
 		Windows,//win
-		Linux,	//unix
-		MacOs,	//unix
+		Linux,  //unix
+		MacOs,  //unix
 		Android,//unix
-		TvOs,	//unix
-		IOS,	//piece of shit
-		Other	//idk, idc (browser or smart toaster or smart toilet or whatever)
+		TvOs,   //unix
+		IOS,    //piece of shit
+		Other   //idk, idc (browser or smart toaster or smart toilet or whatever)
 	}
 
 	[StructLayout(LayoutKind.Sequential)]
@@ -70,22 +70,22 @@ internal static class RuntimeMetricClient
 
 	//on init call this slow ass counter so it can "warm up" because it needs a whole second to display a value the first time
 	//i love this short syntax
-    static RuntimeMetricClient() => _ = (_cpuCounter ?? ((currentOs = DetectOs()) == OS.Windows ? _cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total") : null ))?.NextValue();
+	static RuntimeMetricClient() => _ = (_cpuCounter ?? ((currentOs = DetectOs()) == OS.Windows ? _cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total") : null))?.NextValue();
 
-    public static (float cpuPercentage, float usedRam, float maxRam) GetMetrics() 
+	public static (float cpuPercentage, float usedRam, float maxRam) GetMetrics()
 	{
 		switch (DetectOs())
 		{
 			case OS.Windows: return GetWinMetrics();
 			case OS.Linux: return GetLinuxMetrics();
-			default: 
+			default:
 				return default;
 		}
 	}
 
 	private static (float cpuPercentage, float usedRam, float maxRam) GetWinMetrics()
 	{
-		float cpuUsage = _cpuCounter?.NextValue() ?? 0f;		
+		float cpuUsage = _cpuCounter?.NextValue() ?? 0f;
 		MemoryStatusEx memStatus = new MemoryStatusEx();
 		memStatus.dwLength = (uint)Marshal.SizeOf(typeof(MemoryStatusEx));
 
@@ -117,8 +117,6 @@ internal static class RuntimeMetricClient
 		string output = process.StandardOutput.ReadToEnd();
 		process.WaitForExit();
 
-		//Match cpuMatch, usedRamMatch, maxRamMatch;
-
 		//These all work, just not on every system...
 
 		//Attempt 1
@@ -138,18 +136,18 @@ internal static class RuntimeMetricClient
 		float cpuPercentage = numberMatches.Count >= cpuCaptureIndex + 1 && float.TryParse(numberMatches[cpuCaptureIndex].Value, out cpuPercentage) ? 100 - cpuPercentage : 0;
 		float usedRam = numberMatches.Count >= usedRamCaptureIndex + 1 && float.TryParse(numberMatches[usedRamCaptureIndex].Value, out usedRam) ? usedRam / 1024f : 0;
 		float maxRam = numberMatches.Count >= maxRamCaptureIndex + 1 && float.TryParse(numberMatches[maxRamCaptureIndex].Value, out maxRam) ? maxRam / 1024f : 0;
-		
+
 		return (cpuPercentage, usedRam, maxRam);
 	}
 
-	public static OS DetectOs() 
+	public static OS DetectOs()
 	{
-		if(OperatingSystem.IsWindows()) return OS.Windows;
+		if (OperatingSystem.IsWindows()) return OS.Windows;
 		else if (OperatingSystem.IsLinux()) return OS.Linux;
-		else if(OperatingSystem.IsMacOS()) return OS.MacOs;
-		else if(OperatingSystem.IsAndroid()) return OS.Android;
+		else if (OperatingSystem.IsMacOS()) return OS.MacOs;
+		else if (OperatingSystem.IsAndroid()) return OS.Android;
 		else if (OperatingSystem.IsIOS()) return OS.IOS;
-		else if(OperatingSystem.IsTvOS()) return OS.TvOs;
+		else if (OperatingSystem.IsTvOS()) return OS.TvOs;
 		else return OS.Other;
 	}
 }

@@ -10,13 +10,13 @@ namespace Pumpkin.PiCollectionServer;
 internal static class MailClient //using https://app.elasticemail.com/
 {
 	//I know, not very secure, 2min with cheat engine and you could have the password... but idc i dont have time for "SecureString" of smth similar
-	private const string Password = "283DDA878EB89B47FFE57FF8632CEA2BFB44";
+	private const string Password = "BDCF0CFAA28A935F66FCA3B855EB020285EF";
 	private const string Username = "info@pumpkinapp.be";
 	private const ushort Port = 2525;
 	private const string Server = "smtp.elasticemail.com";
 
 	public static event EventHandler<MailMessage> MessageSent;
-	public static async void SendEmail(string recipientEmail, string subject, string body, bool isBodyHtml = false)
+	public static async void SendEmail(string recipientEmail, string subject, string body)
 	{
 		SmtpClient smtpClient = new SmtpClient
 		{
@@ -31,7 +31,7 @@ internal static class MailClient //using https://app.elasticemail.com/
 			From = new(Username),
 			Subject = subject,
 			Body = body,
-			IsBodyHtml = isBodyHtml
+			IsBodyHtml = true
 		};
 		message.To.Add(new MailAddress(recipientEmail));
 

@@ -6,6 +6,10 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Threading;
+using System.IO;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.WebUtilities;
+using System.Drawing;
 
 namespace Pumpkin.PiCollectionServer;
 
@@ -90,11 +94,11 @@ public class ViewModel
 	private static readonly object _lock = new object();
 
 	private static ViewModel _instance;
-	public static ViewModel Instance 
+	public static ViewModel Instance
 	{
-		get 
+		get
 		{
-			if (_instance is null) 
+			if (_instance is null)
 			{
 				lock (_lock) //i hate locks...
 				{
@@ -107,15 +111,8 @@ public class ViewModel
 		private set => _instance = value;
 	}
 
-	public ViewModel() 
+	public ViewModel()
 	{
-		DownloadedPackets = _downloadedPackets;
-		UploadedPackets = _uploadedPackets;
-		Throughput = _throughput;
-		Errors = _errors;
-		Email = _email;
-		var newGuid = Guid.NewGuid();
-		HWID = newGuid;
 	}
 
 	private ViewModel(object @private) //just here to solve stupid ambiguity
@@ -128,16 +125,14 @@ public class ViewModel
 			Errors = model.Errors;
 			Email = model.Email;
 			HWID = model.HWID;
+			Console.WriteLine("Loaded viewmodel");
 		}
-		else 
+		else
 		{
-			DownloadedPackets = _downloadedPackets;
-			UploadedPackets = _uploadedPackets;
-			Throughput = _throughput;
-			Errors = _errors;
-			Email = _email;
 			HWID = Guid.NewGuid();
+			Console.WriteLine("Creating new viewmodel");
 		}
+
 		//yes... i know this is not how singletons work... but i need to deserialize this mess and i cant do that without a parameterless public ctor
 		Instance = this;
 	}
@@ -145,16 +140,38 @@ public class ViewModel
 	//no i'm not gonna work with locks, they cant even be async... WHY
 	private static SemaphoreSlim fileSemaphore = new(1, 1);
 
-	internal async void SaveModel() 
+	internal async void SaveModel()
 	{
-		await fileSemaphore.WaitAsync();
-		using (var stream = File.Open(ModelFile, FileMode.OpenOrCreate, FileAccess.Write))
+		await Task.Run(async () =>
 		{
-			await JsonSerializer.SerializeAsync(stream, this);
-			await stream.FlushAsync(); //this buffer crap can cause issue with file lock, but should be fine i guess (i want unbuffered streams, but i'm not gonna write one rn)
-			stream.Close();
-		}
-		fileSemaphore.Release();
+			using (MemoryStream bufferStream = new())
+			{
+				try
+				{
+					await JsonSerializer.SerializeAsync(bufferStream, Instance);
+				}
+				catch (Exception)
+				{
+					return;
+				}
+
+				try
+				{
+					await fileSemaphore.WaitAsync();
+					using (FileStream fileStream = File.OpenWrite(ModelFile))
+					{
+						bufferStream.Seek(0, SeekOrigin.Begin);
+						fileStream.Seek(0, SeekOrigin.Begin);
+						await bufferStream.CopyToAsync(fileStream);
+						await fileStream.FlushAsync();
+					}
+				}
+				finally 
+				{ 
+					fileSemaphore.Release(); 
+				}
+			}
+		}).ConfigureAwait(false);
 	}
 
 	//task bc async void may not complete before we start using the model, which would require a taskcompletionsource, but i dont wanna bother with that rn
@@ -165,27 +182,39 @@ public class ViewModel
 		{
 			string dirName = Path.GetDirectoryName(ModelFile);
 			if (!Directory.Exists(dirName)) Directory.CreateDirectory(dirName);
-			using (Stream file = File.Create(ModelFile)) file.Close();
+			using (Stream file = File.Create(ModelFile)) //u shouldnt manually dispose of async streams... bad idea
 			fileSemaphore.Release();
 			return null;
 		}
 
 		ViewModel result;
-		using (var stream = File.Open(ModelFile, FileMode.Open, FileAccess.Read))
+		MemoryStream bufferStream = new();
+
+		try
 		{
-			try
+			using (var fileStream = File.Open(ModelFile, FileMode.Open, FileAccess.Read))
 			{
-				result = (ViewModel)await JsonSerializer.DeserializeAsync(stream, typeof(ViewModel));
+				//copy file to ram first to avoid loading and saving the model simultaneously, which can obviously cause a deadlock (not speaking from experience or anything :) )
+				fileStream.Seek(0, SeekOrigin.Begin);
+				await fileStream.CopyToAsync(bufferStream);
+				await bufferStream.FlushAsync();
 			}
-			catch (Exception ex)
-			{
-				result = null;
-			}
-			finally 
-			{
-				stream.Close();
-				fileSemaphore.Release();
-			}
+		}
+		finally
+		{
+			fileSemaphore.Release();
+		}
+
+		try
+		{
+			bufferStream.Seek(0, SeekOrigin.Begin);
+			result = (ViewModel)await JsonSerializer.DeserializeAsync(bufferStream, typeof(ViewModel));
+			bufferStream.Close();
+			if (bufferStream is not null) await bufferStream.DisposeAsync();
+		}
+		catch (Exception ex)
+		{
+			result = null;
 		}
 		return result;
 	}
