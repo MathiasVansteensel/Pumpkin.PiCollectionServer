@@ -8,6 +8,7 @@ using System.Net.Sockets;
 using Pumpkin.Networking;
 using System.Runtime.CompilerServices;
 using System.Linq;
+using Pumpkin.PiCollectionServer.Tmp;
 
 namespace Pumpkin.PiCollectionServer
 {
@@ -102,7 +103,15 @@ namespace Pumpkin.PiCollectionServer
 			PUMPKIN_ID,
 			CPU_NUM,
 			RAM_NUM,
-			EMAIL
+			EMAIL,
+			//VirtualSite:
+			LAMP_COLOR,
+			LAMP_STATE,
+			LAMP_CYCLE_STATE,
+			TEMPERATURE,
+			HUMIDITY,
+			HEAT_INDEX,
+			LIGHT
 		}
 
 		internal enum EmailPlaceholderIndex
@@ -125,7 +134,15 @@ namespace Pumpkin.PiCollectionServer
 			"{PUMPKIN_ID}",
 			"{CPU_NUM}",
 			"{RAM_NUM}",
-			"{EMAIL}"
+			"{EMAIL}",
+			//VirtualSite:
+			"{LAMP_COLOR}",
+			"{LAMP_STATE}",
+			"{LAMP_CYCLE_STATE}",
+			"{TEMPERATURE}",
+			"{HUMIDITY}",
+			"{HEAT_INDEX}",
+			"{LIGHT}"
 		};
 
 		private static Dictionary<string, Func<dynamic>> portalVariableData = new Dictionary<string, Func<dynamic>>
@@ -140,6 +157,14 @@ namespace Pumpkin.PiCollectionServer
 			{ PortalPlaceHolderStrings[(int)PortalPlaceholderIndex.CPU_NUM], () => $"{PerformanceMetrics.cpuPercentage:0.0}%" },
 			{ PortalPlaceHolderStrings[(int)PortalPlaceholderIndex.RAM_NUM], () => $"{PerformanceMetrics.usedRam:0.0} / {PerformanceMetrics.maxRam:0.0} GB" },
 			{ PortalPlaceHolderStrings[(int)PortalPlaceholderIndex.EMAIL], () => ViewModel.Instance.Email },
+			//VirtualSite:
+			{ PortalPlaceHolderStrings[(int)PortalPlaceholderIndex.TEMPERATURE], () => VirtualSite.LastTemperature},
+			{ PortalPlaceHolderStrings[(int)PortalPlaceholderIndex.LAMP_CYCLE_STATE], () => VirtualSite.LastLampCycleState },
+			{ PortalPlaceHolderStrings[(int)PortalPlaceholderIndex.HUMIDITY], () => VirtualSite.LastHumidity },
+			{ PortalPlaceHolderStrings[(int)PortalPlaceholderIndex.HEAT_INDEX], () => VirtualSite.LastHeatIndex },
+			{ PortalPlaceHolderStrings[(int)PortalPlaceholderIndex.LAMP_COLOR], () => VirtualSite.LastLampColor },
+			{ PortalPlaceHolderStrings[(int)PortalPlaceholderIndex.LAMP_STATE], () => VirtualSite.LastLampState },
+			{ PortalPlaceHolderStrings[(int)PortalPlaceholderIndex.LIGHT], () => VirtualSite.LastLight },
 		};
 
 		internal static readonly string[] EmailPlaceHolderStrings =

@@ -15,7 +15,18 @@ namespace Pumpkin.PiCollectionServer.Tmp;
 //simulates the website
 internal class VirtualSite
 {
-    const string AddQuery = "INSERT INTO UserVariables ({0}) VALUES ({1});";
+    private const string InitText = "No Values Yet!";
+    public static dynamic LastTemperature { get; private set; } = InitText;
+    public static dynamic LastHeatIndex { get; private set; } = InitText;
+	public static dynamic LastHumidity { get; private set; } = InitText;
+	public static dynamic LastLampState { get; private set; } = InitText;
+	public static dynamic LastLampColor { get; private set; } = InitText;
+	public static dynamic LastLampCycleState { get; private set; } = InitText;
+	public static dynamic LastLight { get; private set; } = InitText;
+
+
+
+	const string AddQuery = "INSERT INTO UserVariables ({0}) VALUES ({1});";
 
 	//simulates receiving a message with an httplistener or webhost (like iis or kestrals)
 	public static async void ReceiveMessage(byte[] jsonBuffer)
@@ -33,6 +44,7 @@ internal class VirtualSite
         {
             bool red = false, green = false, blue = false;
             PumpkinMessage currentMessage = msg[i];
+            string values = string.Empty, dates = string.Empty, valueFields = string.Empty, dateFields = string.Empty;
             for (int j = 0; j < currentMessage.Content.Count; j++)
             {
                 var kvp = currentMessage.Content.ElementAt(j);
@@ -42,30 +54,31 @@ internal class VirtualSite
                 switch (kvp.Key)
                 {
                     case PumpkinMessage.IDVarLetter.Temperature:
+                        LastTemperature = kvp.Value;
                         dbValField = "Temperature";
                         dbDateField = "TemperatureTime";
 						break;
                     case PumpkinMessage.IDVarLetter.Humidity:
+                        LastHumidity = kvp.Value;
 						dbValField = "Humidity";
 						dbDateField = "HumidityTime";
 						break;
                     case PumpkinMessage.IDVarLetter.Heat_Index:
+                        LastHeatIndex = kvp.Value;
 						dbValField = "HeatIndex";
 						dbDateField = "HeatIndexTime";
 						break;
                     case PumpkinMessage.IDVarLetter.Light_Intensity:
+                        LastLight = kvp.Value;
 						dbValField = "Light";
 						dbDateField = "LightTime";
 						break;
                     case PumpkinMessage.IDVarLetter.Current:
-						dbValField = "Powerfactor";
-						dbDateField = "PowerfactorTime";
-						break;
+						return;
                     case PumpkinMessage.IDVarLetter.Voltage:
                         return;
                     case PumpkinMessage.IDVarLetter.Power:
 						return;
-						break;
                     case PumpkinMessage.IDVarLetter.Power_Factor:
 						dbValField = "Powerfactor";
 						dbDateField = "PowerfactorTime";
@@ -80,10 +93,12 @@ internal class VirtualSite
                         blue = true;
                         continue;
                     case PumpkinMessage.IDVarLetter.Lamp_State:
+                        LastLampState = kvp.Value;
 						dbValField = "Powerfactor";
 						dbDateField = "PowerfactorTime";
 						break;
                     case PumpkinMessage.IDVarLetter.Lamp_Cycle:
+                        LastLampCycleState = kvp.Value;
 						dbValField = "Powerfactor";
 						dbDateField = "PowerfactorTime";
 						break;
@@ -96,6 +111,10 @@ internal class VirtualSite
                     dbValField = "LampColor";
                     dbDateField = "LampColorTime";
                 }
+
+                //right string += dbfield and val
+                //put in query
+                //put in db... ez
             }
         }
     }
