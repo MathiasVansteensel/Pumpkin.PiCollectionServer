@@ -19,6 +19,8 @@ namespace Pumpkin.PiCollectionServer
 		const string PortalIndexFile = "index.html";
 		const string EmailIndexFile = "EmailBody.html";
 		const string EmailFormKey = "email";
+		const string ColorFormKey = "color";
+		const string CycleFormKey = "cycle";
 		const string EmailSubject = "{0} - 🎃Pumpkin Status Update🎃";
 		//const string MailBody =
 		//"Dear User,<br/><br/>" +
@@ -271,6 +273,26 @@ namespace Pumpkin.PiCollectionServer
 						context.Response.Redirect("/", true);
 						if (oldEmail != ViewModel.Instance.Email) Console.WriteLine($"Email changed [{oldEmail} > {ViewModel.Instance.Email}]");
 					}
+					return;
+				case "/setcolor":
+					try 
+					{
+						string color = context.Request.Form[ColorFormKey];
+						Network.Send($"#SETCOLOR{color}", "255.255.255.255", 6969);
+					}
+					catch (Exception) { Console.WriteLine("Failed to perform command"); }
+					finally
+					{
+					}
+					context.Response.Redirect("/", true);
+					return;
+				case "/cycle":
+					try { Network.Send($"#CYCLE#", "255.255.255.255", 6969); }
+					catch (Exception) { Console.WriteLine("Failed to perform command"); }
+					finally
+					{
+					}
+					context.Response.Redirect("/", true);
 					return;
 				default:
 					requestPath = PortalWWWRoot + path;

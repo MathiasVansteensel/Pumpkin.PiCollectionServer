@@ -152,11 +152,13 @@
             <div class="row justify-content-center">
                 <div class="col-12 col-md-6 col-lg-3">
                     <div class="card-wrapper">
-                        <div class="card-box align-center">
+                        <form method="post" action="/setcolor" class="card-box align-center">
                             <h4 class="card-title align-center mbr-black mbr-fonts-style display-7">
                                 <strong>Lamp Color:<br />{LAMP_COLOR}</strong>
                             </h4>
-                        </div>
+                            <input type="color" name="color" />
+                            <button type="submit">Change</button>
+                        </form>
                     </div>
                 </div>
                 <div class="col-12 col-md-6 col-lg-3">
@@ -170,11 +172,12 @@
                 </div>
                 <div class="col-12 col-md-6 col-lg-3">
                     <div class="card-wrapper">
-                        <div class="card-box align-center">
+                        <form method="post" action="/cycle" class="card-box align-center">
                             <h4 class="card-title align-center mbr-black mbr-fonts-style display-7">
                                 <strong>Lamp Cycle State:<br />{LAMP_CYCLE_STATE}</strong>
                             </h4>
-                        </div>
+                            <button type="submit">Cycle</button>
+                        </form>
                     </div>
                 </div>
                 <div class="col-12 col-md-6 col-lg-3">
