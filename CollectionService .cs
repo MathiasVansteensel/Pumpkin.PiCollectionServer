@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Options;
 using Pumpkin.Networking;
 using System.Collections.Concurrent;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -67,6 +68,8 @@ public static class CollectionService
 		//	else ViewModel.Instance.Errors++;
 		//	if (!IsRunning) Console.WriteLine("Collection service message buffer flushed");
 		//}).Start();
+
+		//VirtualSite.ReceiveMessage(jsonBuffer);
 	}
 
 	public static async void Stop()

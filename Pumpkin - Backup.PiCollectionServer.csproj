@@ -5,6 +5,7 @@
     <TargetFramework>net7.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <Platforms>AnyCPU;ARM64</Platforms>
   </PropertyGroup>
 
   <ItemGroup>
@@ -21,6 +22,7 @@
   <ItemGroup>
     <Reference Include="Pumpkin.Networking">
       <HintPath>..\Pumpkin.Networking\bin\Release\net7.0\publish\Pumpkin.Networking.dll</HintPath>
+      <Private>True</Private>
     </Reference>
   </ItemGroup>
 
@@ -28,6 +30,7 @@
     <None Update="ViewModel\Model.json">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
+<<<<<<< HEAD
     <None Update="Web\Email\EmailBodyInternalStyle - Copy.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
@@ -82,6 +85,53 @@
     <None Update="Web\Portal\assets\web\assets\mobirise-icons2\mobirise2.woff">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+=======
+    <None Update="Web\Email\EmailBody.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Web\Portal\assets\bootstrap\css\bootstrap-grid.min.css">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Web\Portal\assets\bootstrap\css\bootstrap-reboot.min.css">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Web\Portal\assets\bootstrap\css\bootstrap.min.css">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Web\Portal\assets\bootstrap\js\bootstrap.bundle.min.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Web\Portal\assets\images\logo5.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Web\Portal\assets\mobirise\css\mbr-additional.css">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Web\Portal\assets\smoothscroll\smooth-scroll.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Web\Portal\assets\theme\css\style.css">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Web\Portal\assets\theme\js\script.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Web\Portal\assets\web\assets\mobirise-icons2\mobirise2.css">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Web\Portal\assets\web\assets\mobirise-icons2\mobirise2.eot">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Web\Portal\assets\web\assets\mobirise-icons2\mobirise2.svg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Web\Portal\assets\web\assets\mobirise-icons2\mobirise2.ttf">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Web\Portal\assets\web\assets\mobirise-icons2\mobirise2.woff">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+>>>>>>> experimental
     <None Update="Web\Portal\assets\ytplayer\index.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

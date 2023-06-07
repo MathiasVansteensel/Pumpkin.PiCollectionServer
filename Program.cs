@@ -36,10 +36,10 @@ namespace Pumpkin.PiCollectionServer
 
 		private static readonly TimeSpan NetworkInfoUpdateInterval = TimeSpan.FromMinutes(10);
 		private static readonly TimeSpan PerformanceMetricUpdateInterval = TimeSpan.FromMilliseconds(350);
-		private static readonly TimeSpan CollectionInterval = TimeSpan.FromMinutes(1);
+		private static readonly TimeSpan CollectionInterval = TimeSpan.FromSeconds(20);
 
-		private static ushort PortalPort { get; set; } = 6969;
-		private static ushort UdpPort { get; set; } = 8888;
+		private static ushort PortalPort { get; set; } = 8888;
+		private static ushort UdpPort { get; set; } = 6969;
 		private static string ShortDateToday
 		{
 			get => DateTime.Today.ToString("ddd d MMM yyyy");
@@ -182,6 +182,7 @@ namespace Pumpkin.PiCollectionServer
 			networkInfoUpdateWatch.Start();
 			performanceMetricUpdateWatch.Start();
 			Network.Initialize(UdpPort = GetUniquePort(UdpPort, 443, 8080, 80, 25, 2525));
+			
 			PortalPort = GetUniquePort(PortalPort, 443, 2525, 25);
 			Network.DatagramReceived += Network_DatagramReceived;
 			Initialized += OnInitialized;
@@ -306,7 +307,7 @@ namespace Pumpkin.PiCollectionServer
 		public static string GetNetworkName(out IPAddress ip)
 		{
 			NetworkInterface nic = NetworkInterface.GetAllNetworkInterfaces().FirstOrDefault(ni => ni.OperationalStatus == OperationalStatus.Up && ni.NetworkInterfaceType != NetworkInterfaceType.Loopback);
-			ip = nic?.GetIPProperties().UnicastAddresses.Where(addr => addr.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork).FirstOrDefault()?.Address ?? (GetLocalIp() ?? IPAddress.None);
+			ip =GetLocalIp() ?? (nic?.GetIPProperties().UnicastAddresses.Where(addr => addr.Address.AddressFamily == AddressFamily.InterNetwork).FirstOrDefault()?.Address ?? IPAddress.None);
 			return nic?.Name ?? "Not Connected";
 		}
 
