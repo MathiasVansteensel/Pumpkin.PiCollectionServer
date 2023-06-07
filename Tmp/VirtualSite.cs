@@ -2,9 +2,12 @@
 using Pumpkin.Networking;
 using System;
 using System.Collections.Generic;
+using System.Data.OleDb;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Security.Permissions;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -27,6 +30,7 @@ internal class VirtualSite
 
 
 	const string AddQuery = "INSERT INTO UserVariables ({0}) VALUES ({1});";
+    const string ConnectionString = "Provider=Microsoft.ACE.OLEDB.12.0;Data Source=Tmp\\base.accdb;Persist Security Info=False;";
 
 	//simulates receiving a message with an httplistener or webhost (like iis or kestrals)
 	public static async void ReceiveMessage(byte[] jsonBuffer)
@@ -38,13 +42,15 @@ internal class VirtualSite
         }
     }
 
-    private static void WriteToDb(List<PumpkinMessage> msg) 
+	static bool red = false, green = false, blue = false;
+	static dynamic redVal = 0, greenVal = 0, blueVal = 0;
+
+	private static void WriteToDb(List<PumpkinMessage> msg) 
     {
         for (int i = 0; i < msg.Count; i++)
         {
-            bool red = false, green = false, blue = false;
             PumpkinMessage currentMessage = msg[i];
-            string values = string.Empty, dates = string.Empty, valueFields = string.Empty, dateFields = string.Empty;
+            string values = string.Empty, fields = string.Empty;
             for (int j = 0; j < currentMessage.Content.Count; j++)
             {
                 var kvp = currentMessage.Content.ElementAt(j);
@@ -74,33 +80,36 @@ internal class VirtualSite
 						dbDateField = "LightTime";
 						break;
                     case PumpkinMessage.IDVarLetter.Current:
-						return;
+						continue;
                     case PumpkinMessage.IDVarLetter.Voltage:
-                        return;
-                    case PumpkinMessage.IDVarLetter.Power:
-						return;
-                    case PumpkinMessage.IDVarLetter.Power_Factor:
+						continue;
+					case PumpkinMessage.IDVarLetter.Power:
+						continue;
+					case PumpkinMessage.IDVarLetter.Power_Factor:
 						dbValField = "Powerfactor";
 						dbDateField = "PowerfactorTime";
 						break;
                     case PumpkinMessage.IDVarLetter.Red:
                         red = true;
+                        redVal = kvp.Value;
                         continue;
                     case PumpkinMessage.IDVarLetter.Green:
                         green = true;
+                        greenVal = kvp.Value;
                         continue;
                     case PumpkinMessage.IDVarLetter.Blue:
                         blue = true;
+                        blueVal = kvp.Value;
                         continue;
                     case PumpkinMessage.IDVarLetter.Lamp_State:
-                        LastLampState = kvp.Value;
-						dbValField = "Powerfactor";
-						dbDateField = "PowerfactorTime";
+                        LastLampState = ((JsonElement)kvp.Value).ValueKind.ToString() == bool.TrueString ? "ON" : "OFF";
+						dbValField = "LampState";
+						dbDateField = "LampStateTime";
 						break;
                     case PumpkinMessage.IDVarLetter.Lamp_Cycle:
-                        LastLampCycleState = kvp.Value;
-						dbValField = "Powerfactor";
-						dbDateField = "PowerfactorTime";
+                        LastLampCycleState = ((JsonElement)kvp.Value).ValueKind.ToString() == bool.TrueString ? "ON" : "OFF";
+						dbValField = "LampCycle";
+						dbDateField = "LampCycleTime";
 						break;
                     default:
                         break;
@@ -108,16 +117,37 @@ internal class VirtualSite
                 if (red && green && blue) 
                 {
                     red = green = blue = false;
+                    LastLampColor = $"RGB({redVal}, {greenVal}, {blueVal})";
                     dbValField = "LampColor";
                     dbDateField = "LampColorTime";
                 }
 
-                //right string += dbfield and val
-                //put in query
-                //put in db... ez
+                int length = currentMessage.Content.Count;
+                PumpkinMessage.IDVarLetter var = currentMessage.Content.ElementAt((j + 1) % length).Key;
+                dynamic val;
+				string seperator = (j < length - 1 && (var != PumpkinMessage.IDVarLetter.Red && var != PumpkinMessage.IDVarLetter.Green && var != PumpkinMessage.IDVarLetter.Blue) ? ", " : string.Empty);
+                if (var == PumpkinMessage.IDVarLetter.Lamp_State || var == PumpkinMessage.IDVarLetter.Lamp_Cycle) val = ((JsonElement)kvp.Value).ValueKind.ToString() == bool.TrueString ? -1 : 0;
+                else val = kvp.Value;
+				values += $"'{val}', '{currentMessage.Timestamp}'{seperator}";
+				fields += $"{dbValField}, {dbDateField}{seperator}";
+			}
+
+            string query = string.Format(AddQuery, fields, values);
+
+            try
+            {
+				OleDbConnection connection = new(ConnectionString);
+				OleDbCommand command = new(query, connection);
+				connection.Open();
+				command.ExecuteNonQuery();
+				connection.Close();
+			}
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
             }
-        }
-    }
+		}
+	}
 
 
 }
