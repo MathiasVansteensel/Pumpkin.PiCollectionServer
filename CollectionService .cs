@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.Json;
 using System.Timers;
 using Timer = System.Timers.Timer;
+using Pumpkin.PiCollectionServer.Tmp;
 
 namespace Pumpkin.PiCollectionServer;
 public static class CollectionService
@@ -69,7 +70,7 @@ public static class CollectionService
 		//	if (!IsRunning) Console.WriteLine("Collection service message buffer flushed");
 		//}).Start();
 
-		//VirtualSite.ReceiveMessage(jsonBuffer);
+		VirtualSite.ReceiveMessage(jsonBuffer);
 	}
 
 	public static async void Stop()
